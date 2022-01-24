@@ -4,6 +4,7 @@ from enum import Enum
 class Action(Enum):
     SELL = 0
     BUY = 1
+    HOLD = 2
 
 
 class Position(Enum):
