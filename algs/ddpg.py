@@ -16,6 +16,9 @@ from numpy.random import normal
 import tensorflow as tf
 from tensorflow.keras.models import *
 from tensorflow.keras.layers import *
+from tensorflow.keras.losses import *
+from tensorflow.keras.optimizers import *
+
 from env.BitcoinEnv import BitcoinTradingEnv
 
 
@@ -124,7 +127,7 @@ class DDPG_agent():
     def get_action(self, state):
         
         policy_action = self.policy(np.array([state]))
-        return min(max(policy_action + normal(0, self.noise_std), -1), 1)
+        return min(max(policy_action + normal(0, self.noise_std), np.array([[-1]])), np.array([[1]]))
 
     def run_episode(self):
 
@@ -291,5 +294,5 @@ def run(data):
 
     data = np.array(data_)
 
-    agent = DDPG_agent(data)
+    agent = DDPG_agent(data, seed=0)
     agent.train()
