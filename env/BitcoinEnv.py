@@ -40,7 +40,8 @@ class BitcoinTradingEnv(Env):
         # could've designed a lazy loader or related
         # but it's easier, safer, and faster to just map all data in memory
         # (it's not that big anyways)
-        self.price_history = price_history
+
+        self.price_history = price_history.astype(np.float32)
         """all prices in a 1D array"""
 
         self.current_moment = self.memory - 1

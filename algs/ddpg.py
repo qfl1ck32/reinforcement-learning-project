@@ -42,7 +42,7 @@ class Q(Model):
         for l in self.hidden_layers:
             tmp = l(tmp)
 
-        return self.output_layer(tmp)[0] # shape (1, 1) => (1,)
+        return self.output_layer(tmp)
 
 class Policy(Model):
 
@@ -64,7 +64,7 @@ class Policy(Model):
         for l in self.hidden_layers:
             tmp = l(tmp)
 
-        return self.output_layer(tmp)[0] # shape (1, 1) => (1,)
+        return self.output_layer(tmp)
     
 class DDPG_agent():
 
@@ -126,7 +126,7 @@ class DDPG_agent():
 
     def get_action(self, state):
         
-        policy_action = self.policy(np.array([state]))
+        policy_action = self.policy(np.array([state]))[0]
         return min(max(policy_action + normal(0, self.noise_std), np.array([-1])), np.array([1]))
 
     def run_episode(self):
@@ -160,9 +160,15 @@ class DDPG_agent():
                 a_batch = tf.stack([sample[1] for sample in samples], axis=0)
                 r_batch = tf.stack([sample[2] for sample in samples], axis=0)
                 s_next_batch = tf.stack([sample[3] for sample in samples], axis=0)
-
+                
+                print(s_batch[0][1].dtype)
+                print(a_batch[0].dtype)
+                print(r_batch[0].dtype)
+                print(s_next_batch[0][1].dtype)
+                print(s_batch.shape)
                 print(a_batch.shape)
                 print(r_batch.shape)
+                print(s_next_batch.shape)
 
                 # train Q network
 
@@ -174,6 +180,8 @@ class DDPG_agent():
                     q_pred = self.q(tf.concat([s_batch, a_batch], axis=1))
 
                     a_next_batch = self.policy_target(s_next_batch)
+                    print(s_next_batch.shape)
+                    print(a_next_batch.shape)
                     q_gt = r_batch + self.discount * self.q_target(tf.concat([s_next_batch, a_next_batch], axis=1))
 
                     q_loss = (q_pred - q_gt) ** 2
