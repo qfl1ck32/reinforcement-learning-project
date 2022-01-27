@@ -1,5 +1,6 @@
 import csv
 from math import isnan
+from typing import List
 
 from constants import trading_data_file_directory, start_year_for_data, data_directory, processed_data_filename
 from data.TradingData import TradingData
@@ -19,7 +20,7 @@ def exists_data(starting_with_year: int = start_year_for_data):
 
 
 def generate_and_save_data(starting_with_year=start_year_for_data, limit=float('+inf')):
-    data: [TradingData] = []
+    data: List[TradingData] = []
 
     year_to_timestamp = datetime(starting_with_year, 1, 1).timestamp()
 
@@ -49,11 +50,11 @@ def generate_and_save_data(starting_with_year=start_year_for_data, limit=float('
     return data
 
 
-def save_data(data: [TradingData], starting_with_year=start_year_for_data):
+def save_data(data: List[TradingData], starting_with_year=start_year_for_data):
     with open(format_file_path(starting_with_year), "wb") as file:
         pickle.dump(data, file)
 
 
-def load_data(starting_with_year=start_year_for_data) -> [TradingData]:
+def load_data(starting_with_year=start_year_for_data) -> List[TradingData]:
     with open(format_file_path(starting_with_year), "rb") as file:
         return pickle.load(file)

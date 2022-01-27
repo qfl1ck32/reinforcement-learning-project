@@ -1,7 +1,7 @@
 from enum import Enum
 
 
-class Action(Enum):
+class DiscreteAction(Enum):
     SELL = 0
     BUY = 1
     HOLD = 2
@@ -14,4 +14,4 @@ class Position(Enum):
     NONE = 2
 
     def opposite(self):
-        return self.LONG if self == self.SHORT else self.LONG
+        return self.LONG if self == self.SHORT else self.SHORT

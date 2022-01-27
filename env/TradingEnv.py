@@ -3,11 +3,11 @@ from abc import ABC, abstractmethod
 from gym import Env
 from gym.spaces import Discrete, Box
 from gym.utils import seeding
-from enums import Action, Position
+from enums import DiscreteAction, Position
 from numpy import ndarray, inf, float32
-
 from matplotlib.pyplot import cla, plot, suptitle, pause, scatter
 
+from typing import List, Tuple, Dict
 
 class TradingEnv(Env, ABC):
     dataframe: ndarray
@@ -18,7 +18,7 @@ class TradingEnv(Env, ABC):
 
     np_random: int
 
-    shape: (int, int)
+    shape: Tuple[int, int]
 
     _done: bool
 
@@ -29,12 +29,12 @@ class TradingEnv(Env, ABC):
     _last_trade_tick: int
 
     _position: Position
-    _position_history: list[Position]
+    _position_history: List[Position]
 
     _total_reward: int
     _total_profit: int
 
-    _history: dict[str, list]  # total_reward: [int], total_profit: [int], position: [Position]
+    _history: Dict[str, list]  # total_reward: [int], total_profit: [int], position: [Position] am mancat sarmale
 
     _is_first_rendering: bool
 
@@ -53,7 +53,7 @@ class TradingEnv(Env, ABC):
 
         self.seed()
 
-        self.action_space = Discrete(len(Action))
+        self.action_space = Discrete(len(DiscreteAction))
         self.observation_space = Box(
             low=-inf,
             high=inf,
@@ -88,7 +88,7 @@ class TradingEnv(Env, ABC):
 
         self._initialise_history()
 
-    def step(self, action: Action):
+    def step(self, action: DiscreteAction):
         self._current_tick += 1
 
         reward = self._calculate_reward(action)
@@ -126,8 +126,8 @@ class TradingEnv(Env, ABC):
 
         return [seed]
 
-    def _should_trade(self, action: Action):
-        return action == Action.BUY and self._position == Position.SHORT or action == Action.SELL and self._position == Position.LONG
+    def _should_trade(self, action: DiscreteAction):
+        return action == DiscreteAction.BUY and self._position == Position.SHORT or action == DiscreteAction.SELL and self._position == Position.LONG
 
     def _get_observation(self):
         return self.signal_features[
@@ -166,11 +166,11 @@ class TradingEnv(Env, ABC):
         pass
 
     @abstractmethod
-    def _update_profit(self, action: Action):
+    def _update_profit(self, action: DiscreteAction):
         pass
 
     @abstractmethod
-    def _calculate_reward(self, action: Action):
+    def _calculate_reward(self, action: DiscreteAction):
         pass
 
     @abstractmethod
