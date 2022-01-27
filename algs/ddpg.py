@@ -42,7 +42,7 @@ class Q(Model):
         for l in self.hidden_layers:
             tmp = l(tmp)
 
-        return self.output_layer(tmp)
+        return self.output_layer(tmp)[0] # shape (1, 1) => (1,)
 
 class Policy(Model):
 
@@ -64,7 +64,7 @@ class Policy(Model):
         for l in self.hidden_layers:
             tmp = l(tmp)
 
-        return self.output_layer(tmp)
+        return self.output_layer(tmp)[0] # shape (1, 1) => (1,)
     
 class DDPG_agent():
 
@@ -127,7 +127,7 @@ class DDPG_agent():
     def get_action(self, state):
         
         policy_action = self.policy(np.array([state]))
-        return min(max(policy_action + normal(0, self.noise_std), np.array([[-1]])), np.array([[1]]))
+        return min(max(policy_action + normal(0, self.noise_std), np.array([-1])), np.array([1]))
 
     def run_episode(self):
 
@@ -160,6 +160,9 @@ class DDPG_agent():
                 a_batch = tf.stack([sample[1] for sample in samples], axis=0)
                 r_batch = tf.stack([sample[2] for sample in samples], axis=0)
                 s_next_batch = tf.stack([sample[3] for sample in samples], axis=0)
+
+                print(a_batch.shape)
+                print(r_batch.shape)
 
                 # train Q network
 
