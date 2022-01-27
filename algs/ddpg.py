@@ -7,8 +7,11 @@
 # https://spinningup.openai.com/en/latest/algorithms/ddpg.html#deep-deterministic-policy-gradient
 
 import numpy as np
+
 from time import time
+
 import random
+from numpy.random import normal
 
 import tensorflow as tf
 from tensorflow import keras
@@ -16,6 +19,7 @@ from tensorflow.keras.models import *
 from tensorflow.keras.layers import *
 from tensorflow.keras.activations import *
 from tensorflow.keras.optimizers import *
+from tensorflow.keras.losses import *
 
 import gym
 from gym.spaces import * 
@@ -70,10 +74,17 @@ class BitcoinTradingEnv(gym.Env):
         self.current_moment = self.memory - 1
         self.last_observation = np.array(self.price_history[:self.memory])
 
+        self.total_balance = self.start_money + self.start_btc * self.price_history[self.current_moment]
+
         return self.last_observation
 
     def seed(self, seed=None):
-        pass
+        
+        if seed is not None:
+            
+            random.seed(seed)
+            tf.random.set_seed(seed)
+            np.random.seed(seed)
     
     # (observation, reward, done, info)
     def step(self, action):
@@ -94,7 +105,7 @@ class BitcoinTradingEnv(gym.Env):
 
         elif action < 0:
             
-            self.money += self.btc * action * current_price
+            self.money += self.btc * (-action) * current_price
             self.btc *= (1 - action)
 
         self.current_moment += 1
@@ -124,9 +135,9 @@ class Q(Model):
         self.input_layer = InputLayer(input_shape = input_shape)
 
         self.hidden_layers = []
-        self.hidden_layers.append(Dense(128), activation = "relu")
+        self.hidden_layers.append(Dense(128, activation = "relu"))
 
-        self.output_layer = Dense(1, activation = "sigmoid")
+        self.output_layer = Dense(1, activation = "linear")
     
     @tf.function
     def call(self, inputs):
@@ -146,9 +157,9 @@ class Policy(Model):
         self.input_layer = InputLayer(input_shape = input_shape)
 
         self.hidden_layers = []
-        self.hidden_layers.append(Dense(128), activation = "relu")
+        self.hidden_layers.append(Dense(128, activation = "relu"))
 
-        self.output_layer = Dense(1, activation = "sigmoid")
+        self.output_layer = Dense(1, activation = "tanh")
 
     @tf.function
     def call(self, inputs):
@@ -159,20 +170,20 @@ class Policy(Model):
             tmp = l(tmp)
 
         return self.output_layer(tmp)
-
-    def get_epsilon(self):
-        pass
     
 class DDPG_agent():
 
     def __init__(self,
                     data,
                     seed = None,
-                    replay_buffer_len = 32000,
-                    discount = 0.9,
-                    batch_size = 1024,
+                    noise_std = 0.1,
+                    replay_buffer_len = 1024 * 16,
+                    discount = 0.98,
+                    batch_size = 128,
                     q_lr = 0.001,
-                    policy_lr = 0.001,
+                    policy_lr = 0.0001,
+                    q_momentum = 0.9,
+                    policy_momentum = 0.9,
                     polyak = 0.9,
                     steps_until_sync = 10,
                     state_size = 5,
@@ -181,13 +192,7 @@ class DDPG_agent():
                     ):
         
         self.env = BitcoinTradingEnv(data, start_money, start_btc, state_size)
-
-        if seed is not None:
-            
-            random.seed(seed)
-            self.env.seed(seed)
-            tf.random.set_seed(seed)
-            np.random.seed(seed)
+        self.env.seed(seed)
 
         self.q = Q(input_shape = (1 + state_size,))
         self.q_target = Q(input_shape = (1 + state_size,))
@@ -195,11 +200,14 @@ class DDPG_agent():
         self.policy = Policy(input_shape = (state_size,)) 
         self.policy_target = Policy(input_shape = (state_size,)) 
 
-        self.q.build()
-        self.q_target.build()
+        q_input_shape = tf.TensorShape([None, 1 + state_size])
+        policy_input_shape = tf.TensorShape([None, state_size])
 
-        self.policy.build()
-        self.policy_target.build()
+        self.q.build(input_shape = q_input_shape)
+        self.q_target.build(input_shape = q_input_shape)
+
+        self.policy.build(input_shape = policy_input_shape)
+        self.policy_target.build(input_shape = policy_input_shape)
         
         self.replay_buffer = []
         self.replay_buffer_len = replay_buffer_len
@@ -209,12 +217,22 @@ class DDPG_agent():
 
         self.q_lr = q_lr
         self.policy_lr = policy_lr
+        self.q_momentum = q_momentum
+        self.policy_momentum = policy_momentum
+
         self.batch_size = batch_size
 
         self.steps_until_sync = steps_until_sync
 
+        self.noise_std = noise_std
+
+        self.q_optimizer = SGD(self.q_lr, self.q_momentum)
+        self.policy_optimizer = SGD(self.policy_lr, self.policy_momentum)
+
     def get_action(self, state):
-        pass
+        
+        policy_action = self.policy(np.array([state]))
+        return min(max(policy_action + normal(0, self.noise_std), -1), 1)
 
     def run_episode(self):
         
@@ -234,23 +252,86 @@ class DDPG_agent():
 
             self.replay_buffer.append((state, action, reward, next_state, 1 if done else 0))
             
-            if i % self.steps_until_sync == 0:
-                
-                samples = random.sample(self.replay_buffer, self.replay_buffer_len)
-                for sample in samples:
+            if i % self.steps_until_sync == 0 and len(self.replay_buffer) >= self.batch_size:
+
+                samples = random.sample(self.replay_buffer[-self.replay_buffer_len:], self.batch_size)
+
+                # TODO remove after debug
+                tf.debugging.enable_check_numerics()
+
+                # s, a, r, s_, d = sample[0], sample[1], sample[2], sample[3], sample[4]
+
+                s_batch = tf.stack([sample[0] for sample in samples], axis=0)
+                a_batch = tf.stack([sample[1] for sample in samples], axis=0)
+                r_batch = tf.stack([sample[2] for sample in samples], axis=0)
+                s_next_batch = tf.stack([sample[3] for sample in samples], axis=0)
+
+                # train Q network
+
+                with tf.GradientTape() as q_tape:
+
+                    q_vars = self.q.trainable_variables
+                    q_tape.watch(q_vars)
+
+                    q_pred = self.q(tf.concat([s_batch, a_batch], axis=1))
+
+                    a_next_batch = self.policy_target(s_next_batch)
+                    q_gt = r_batch + self.discount * self.q_target(tf.concat([s_next_batch, a_next_batch], axis=1))
+
+                    q_loss = (q_pred - q_gt) ** 2
+
+                q_gradients = q_tape.gradient(q_loss, q_vars)
+                self.q_optimizer.apply_gradients(zip(q_gradients, q_vars))
+
+                print(f"OK {i}")
+
+                # train Policy network
+
+                # old
+                '''for sample in samples:
 
                     s, a, r, s_, d = sample
 
-                    target_q_input = np.insert(s_, len(s_) - 1, self.policy_target(s_))
-                    train_q_input = np.insert(s, len(s) - 1, a)
+                    # train (gradient descent) 
 
-                    q_gt = r + self.discount * (1 - d) * self.q_target(target_q_input)
-                    q_pred = self.q(train_q_input)
+                    tf.debugging.enable_check_numerics()
 
-                    critic_loss = (q_gt - q_pred) ** 2
-                    actor_loss = self.q(np.insert(s, len(s) - 1, self.policy(s)))
+                    with tf.GradientTape(watch_accessed_variables = True) as q_tape:
 
-                    # TODO gradient descent 
+                        q_vars = self.q.trainable_variables
+                        q_tape.watch(q_vars)
+
+                        target_q_input = np.insert(s_, len(s_) - 1, self.policy_target(np.array([s_])))
+                        train_q_input = np.insert(s, len(s) - 1, a)
+
+                        q_gt = r + self.discount * (1 - d) * self.q_target(np.array([target_q_input]))
+                        q_pred = self.q(np.array([train_q_input]))
+
+                        q_loss = (q_gt - q_pred) ** 2
+
+                    q_gradients = q_tape.gradient(q_loss, q_vars)
+                    self.q_optimizer.apply_gradients(zip(q_gradients, q_vars))
+
+                    print(q_gradients)
+                    print("OK HERE =====================================================================")
+
+                    # TODO adjust watch_accessed_variables ???
+                    with tf.GradientTape(watch_accessed_variables = True) as policy_tape:
+
+                        policy_vars = self.policy.trainable_variables
+                        policy_tape.watch(policy_vars)
+
+                        policy_input = np.insert(s, len(s) - 1, self.policy(np.array([s])))
+
+                        policy_loss = -self.q(np.array([policy_input]))
+
+                    policy_gradients = policy_tape.gradient(policy_loss, policy_vars)
+
+                    print(policy_gradients)
+
+                    self.policy_optimizer.apply_gradients(zip(policy_gradients, policy_vars))
+
+                    # polyak averaging
 
                     q_target_w = self.q_target.get_weights()
                     q_train_w = self.q.get_weights()
@@ -262,7 +343,21 @@ class DDPG_agent():
                     policy_train_w = self.policy.get_weights()
 
                     policy_target_w = self.polyak * policy_target_w + (1 - self.polyak) * policy_train_w
-                    self.policy_target_w.set_weights(policy_target_w)                    
+                    self.policy_target_w.set_weights(policy_target_w)        '''        
+
+                q_target_w = self.q_target.get_weights()
+                q_train_w = self.q.get_weights()
+
+                q_target_w = self.polyak * q_target_w + (1 - self.polyak) * q_train_w
+                self.q_target.set_weights(q_target_w)
+
+                policy_target_w = self.policy_target.get_weights()
+                policy_train_w = self.policy.get_weights()
+
+                policy_target_w = self.polyak * policy_target_w + (1 - self.polyak) * policy_train_w
+                self.policy_target_w.set_weights(policy_target_w)    
+
+            i += 1
 
     def train(self, episodes = 1, save_model = True):
         
@@ -276,7 +371,7 @@ class DDPG_agent():
             tag = int(time())
 
             self.q_target.save(f"q_model_{tag}")
-            self.policy_target.save(f"q_model_{tag}")
+            self.policy_target.save(f"policy_model_{tag}")
 
 def run(data):
     """entry point"""   
