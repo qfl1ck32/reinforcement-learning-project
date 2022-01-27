@@ -32,5 +32,5 @@ class TradingData:
                f"Close: {self.close} | Volume BTC: {self.volume_btc} | Volume currency: {self.volume_currency} | " \
                f"Weighted price: {self.weighted_price}"
 
-    def return_numpy(self):
+    def to_numpy(self):
         return np.array([self.timestamp, self.high, self.low, self.close, self.volume_btc, self.volume_currency, self.weighted_price])

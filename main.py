@@ -1,7 +1,8 @@
 import numpy as np
 from logger.logger import logger
 from data.DataManager import *
-from algs import ddpg, dqn, actor_critic
+from algs import actor_critic
+
 
 def get_data():
 
@@ -16,31 +17,33 @@ def get_data():
 
     return data
 
-def get_numpy_data():
 
+def get_numpy_data():
     data = get_data()
+
     for i in range(len(data)):
-        data[i] = data[i].return_numpy()
+        data[i] = data[i].to_numpy()
 
     data = np.array(data)
     return data
-    
-def main():
 
+
+def main():
     data = get_numpy_data()
 
-    print("running DDPG algorithm...")
-    ddpg.run(data)
+    # logger.info("running DDPG algorithm...")
+    # ddpg.run(data)
 
-    print("running DQN algorithm...")
-    dqn.run(data)
+    # logger.info("running DQN algorithm...")
+    # dqn.run(data)
+    # # TODO MIT
+
+    logger.info("running actor-critic algorithm...")
+    actor_critic.run(data)
     # TODO RUS
 
-    print("running actor-critic algorithm...")
-    actor_critic.run(data)
-    # TODO MIT
+    logger.info("done")
 
-    print("done")
 
 if __name__ == '__main__':
     main()
