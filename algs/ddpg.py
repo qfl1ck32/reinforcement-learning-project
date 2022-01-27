@@ -11,110 +11,10 @@ from time import time
 import random
 
 import tensorflow as tf
-from tensorflow import keras
 from tensorflow.keras.models import *
 from tensorflow.keras.layers import *
-from tensorflow.keras.activations import *
-from tensorflow.keras.optimizers import *
+from env.BitcoinEnv import BitcoinTradingEnv
 
-import gym
-from gym.spaces import * 
-
-class BitcoinTradingEnv(gym.Env):
-
-    def __init__(self, 
-                    price_history,
-                    start_money=1000.0,
-                    start_btc=0.0,
-                    price_memory_len=5
-                ):
-        super(BitcoinTradingEnv, self).__init__()
-
-        assert(price_memory_len >= 1)
-        assert(start_btc >= 0.0)
-        assert(start_money >= 0)
-
-        self.money = 0
-        self.start_money = start_money
-        """how much money at the beginnig"""
-
-        self.btc = 0
-        self.start_btc = start_btc
-        """how much btc at the beginnig"""
-
-        self.memory = price_memory_len
-        self.observation_space = Box(low=0.0, high=100000.0, dtype=np.float32, shape=(1, self.memory))
-        """price over last <<self.memory>> entries"""
-
-        self.last_observation = None
-
-        self.action_space = Box(low=-1.0, high=1.0, dtype=np.float32, shape=(1,))
-        """1 means buy as much as possible, -1 mean sell as much as possible"""
-        
-        # could've designed a lazy loader or related
-        # but it's easier, safer, and faster to just map all data in memory
-        # (it's not that big anyways)
-        self.price_history = price_history
-        """all prices in a 1D array"""
-
-        self.current_moment = self.memory - 1
-        """clock"""
-
-        #self.reward_range DEFAULT
-
-    def reset(self):
-        
-        self.money = self.start_money
-        self.btc = self.start_btc
-
-        self.current_moment = self.memory - 1
-        self.last_observation = np.array(self.price_history[:self.memory])
-
-        return self.last_observation
-
-    def seed(self, seed=None):
-        pass
-    
-    # (observation, reward, done, info)
-    def step(self, action):
-
-        observation = None
-        reward = None
-        info = {}   # unused
-
-        # if action > 0, buy btc with self.money * action
-        # if action < 0, sell btc with self.btc * action
-
-        current_price = self.price_history[self.current_moment]
-
-        if action > 0:
-            
-            self.btc += (self.money * action) / current_price
-            self.money *= (1 - action)
-
-        elif action < 0:
-            
-            self.money += self.btc * action * current_price
-            self.btc *= (1 - action)
-
-        self.current_moment += 1
-        observation = np.insert(self.last_observation[1:], self.memory - 1, self.price_history[self.current_moment])
-
-        new_total_balance = self.btc * self.price_history[self.current_moment] + self.money
-        reward = (10 * (new_total_balance - self.total_balance) / self.total_balance) ** 2
-
-        self.total_balance = new_total_balance
-        
-        if self.current_moment == len(self.price_history) - 1:
-            return observation, reward, True, info
-
-        return observation, reward, False, info
-
-    def render(self, mode="human"):
-        print("not implemented, sorry :P")
-
-    def close(self):
-        return None
 
 class Q(Model):
 
@@ -127,10 +27,10 @@ class Q(Model):
         self.hidden_layers.append(Dense(128), activation = "relu")
 
         self.output_layer = Dense(1, activation = "sigmoid")
-    
+
     @tf.function
     def call(self, inputs):
-        
+
         tmp = self.input_layer(inputs)
 
         for l in self.hidden_layers:
@@ -152,7 +52,7 @@ class Policy(Model):
 
     @tf.function
     def call(self, inputs):
-        
+
         tmp = self.input_layer(inputs)
 
         for l in self.hidden_layers:
@@ -162,7 +62,7 @@ class Policy(Model):
 
     def get_epsilon(self):
         pass
-    
+
 class DDPG_agent():
 
     def __init__(self,
@@ -179,11 +79,11 @@ class DDPG_agent():
                     start_money = 1000,
                     start_btc = 1000
                     ):
-        
+
         self.env = BitcoinTradingEnv(data, start_money, start_btc, state_size)
 
         if seed is not None:
-            
+
             random.seed(seed)
             self.env.seed(seed)
             tf.random.set_seed(seed)
@@ -192,18 +92,18 @@ class DDPG_agent():
         self.q = Q(input_shape = (1 + state_size,))
         self.q_target = Q(input_shape = (1 + state_size,))
 
-        self.policy = Policy(input_shape = (state_size,)) 
-        self.policy_target = Policy(input_shape = (state_size,)) 
+        self.policy = Policy(input_shape = (state_size,))
+        self.policy_target = Policy(input_shape = (state_size,))
 
         self.q.build()
         self.q_target.build()
 
         self.policy.build()
         self.policy_target.build()
-        
+
         self.replay_buffer = []
         self.replay_buffer_len = replay_buffer_len
-        
+
         self.discount = discount
         self.polyak = polyak
 
@@ -217,7 +117,7 @@ class DDPG_agent():
         pass
 
     def run_episode(self):
-        
+
         state = self.env.reset()
 
         self.q_target.set_weights(self.q.get_weights())
@@ -233,9 +133,9 @@ class DDPG_agent():
                 return self.env.total_balance
 
             self.replay_buffer.append((state, action, reward, next_state, 1 if done else 0))
-            
+
             if i % self.steps_until_sync == 0:
-                
+
                 samples = random.sample(self.replay_buffer, self.replay_buffer_len)
                 for sample in samples:
 
@@ -262,12 +162,12 @@ class DDPG_agent():
                     policy_train_w = self.policy.get_weights()
 
                     policy_target_w = self.polyak * policy_target_w + (1 - self.polyak) * policy_train_w
-                    self.policy_target_w.set_weights(policy_target_w)                    
+                    self.policy_target_w.set_weights(policy_target_w)
 
     def train(self, episodes = 1, save_model = True):
-        
+
         for ep_idx in range(episodes):
-            
+
             balance = self.run_episode()
             print(f"balance after episode {ep_idx}: {balance}")
 
@@ -279,7 +179,7 @@ class DDPG_agent():
             self.policy_target.save(f"q_model_{tag}")
 
 def run(data):
-    """entry point"""   
+    """entry point"""
 
     def _check_gap_frequency(data):
 
