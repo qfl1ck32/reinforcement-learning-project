@@ -150,7 +150,7 @@ class DDPG_agent():
         while True:
 
             if DEBUG:
-                if step_idx % 100 == 0:
+                if step_idx % 5 == 0:
                     print(f"[Step {step_idx}] total balance {self.env.total_balance}, " +\
                             f"money {self.env.money}, btc {self.env.btc}, " + \
                             f"money/btc {self.env.price_history[self.env.current_moment]}")

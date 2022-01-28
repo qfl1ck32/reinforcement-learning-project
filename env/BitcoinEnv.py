@@ -91,8 +91,6 @@ class BitcoinTradingEnv(Env):
 
         current_price = self.price_history[self.current_moment]
 
-        assert(-1 <= action <= 1)
-
         if action > 0:
             
             self.btc += (self.money * action) / current_price
@@ -101,7 +99,7 @@ class BitcoinTradingEnv(Env):
         elif action < 0:
             
             self.money += self.btc * (-action) * current_price
-            self.btc *= (1 - action)
+            self.btc *= 1 + action
 
         self.current_moment += 1
         observation = np.insert(self.last_observation[1:], self.memory - 1, self.price_history_deriv[self.current_moment - 1])
