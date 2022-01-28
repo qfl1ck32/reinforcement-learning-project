@@ -91,10 +91,11 @@ class DDPG_agent():
                     steps_until_sync = 10,
                     state_size = 5,
                     start_money = 1000,
-                    start_btc = 0.1
+                    start_btc = 0.1,
+                    relative_reward = True
                     ):
 
-        self.env = BitcoinTradingEnv(data, start_money, start_btc, state_size, episode_len)
+        self.env = BitcoinTradingEnv(data, start_money, start_btc, state_size, episode_len, relative_reward)
         self.env.seed(seed)
 
         self.episode_len = episode_len
@@ -245,8 +246,11 @@ class DDPG_agent():
                 self.q_target.save_weights(f"q_model_ep{ep_idx}_{tag}")
                 self.policy_target.save_weights(f"policy_model_ep{ep_idx}_{tag}")
 
-    def test(self):
+    def test(self, data):
+        
+        backup_ep_len = self.env.episode_len
 
+        self.env.episode_len = len(data) - 10 # -10 as a precaution for improper indexes
         state = self.env.reset()
 
         step_idx = 0
@@ -262,15 +266,74 @@ class DDPG_agent():
             next_state, _, done, _ = self.env.step(action)
 
             if done or step_idx >= self.episode_len:
+
+                self.env.episode_len = backup_ep_len
                 return self.env.total_balance
             
             state = next_state
             step_idx += 1
 
     @staticmethod
-    def gridsearch():
-        pass
+    def gridsearch(data):
+        
+        f = open("gridsearch.txt", "w+")
 
+        hyperparam_val =    {
+                            "episode_len": [5000],
+                            "noise_std": [0.05],
+                            "replay_buffer_len": [1024 * 6],
+                            "discount": [0.9997],
+                            "batch_size": [256, 1024],
+                            "q_lr": [0.001],
+                            "policy_lr": [0.0001],
+                            "q_momentum": [0.9],
+                            "policy_momentum": [0.9],
+                            "polyak": [0.8],
+                            "steps_until_sync": [20],
+                            "state_size": [3, 5, 10],
+                            "start_money": [10000],
+                            "start_btc": [0.1],
+                            "relative_reward": [True, False]
+                            }
+        hyperparam_names = [name for name in hyperparam_val.keys()]
+
+        def _get_hyperparam_seq(params):
+
+            if len(params) == 0:
+                yield {}
+            
+            else:
+
+                for val in hyperparam_val[params[0]]:
+                    for seq in _get_hyperparam_seq(params[1:]):
+
+                        to_yield = {params[0]: val} 
+                        to_yield.update(seq.copy())
+
+                        yield to_yield
+
+        for hyperparams in _get_hyperparam_seq(hyperparam_names):
+
+            try:
+            
+                data_ = deepcopy(data)
+
+                agent = DDPG_agent(data_, **hyperparams)
+                agent.train(save_model = False)
+
+                final_balance = agent.test(data_)
+
+                f.write(f"parameters {hyperparams}, final_balance: {final_balance}")
+                f.flush()
+
+                agent.q_target.save_weights(f"q_model_balance_{int(final_balance)}")
+                agent.policy_target.save_weights(f"policy_model_balance_{int(final_balance)}")
+
+            except Exception as err:
+                f.write(f"parameters {hyperparams}, ERROR: {err, err.args}")
+
+        f.flush()
+        f.close()
 
 def run(data):
     """entry point"""
@@ -328,6 +391,8 @@ def run(data):
 
     data = np.array(data_)
 
+    #DDPG_agent.gridsearch(data)
+
     agent = DDPG_agent(data, 
                         seed = 0,
                         episode_len = 5000,
@@ -343,6 +408,7 @@ def run(data):
                         steps_until_sync = 20,
                         state_size = 5,
                         start_money = 10000,
-                        start_btc = 0.1
+                        start_btc = 0.1,
+                        relative_reward = False
                     )
     agent.train()

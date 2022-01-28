@@ -9,3 +9,4 @@ local*.py
 q_model*
 policy_model*
 checkpoint
+gridsearch*

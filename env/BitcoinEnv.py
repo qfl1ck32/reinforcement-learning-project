@@ -13,7 +13,8 @@ class BitcoinTradingEnv(Env):
                     start_money = 1000.0,
                     start_btc = 0.0,
                     memory = 5,
-                    episode_len = 5000
+                    episode_len = 5000,
+                    relative_reward = True,
                 ):
         super(BitcoinTradingEnv, self).__init__()
 
@@ -23,6 +24,9 @@ class BitcoinTradingEnv(Env):
 
         self.episode_len = episode_len
         self.steps_todo = self.episode_len
+
+        self.relative_reward = relative_reward
+        """parameter that slightly tweaks reward mechanism in some cases"""
 
         self.money = 0
         self.start_money = start_money
@@ -39,7 +43,9 @@ class BitcoinTradingEnv(Env):
         self.last_observation = None
 
         self.action_space = Box(low=-1.0, high=1.0, dtype=np.float32, shape=(1,))
-        """1 means buy as much as possible, -1 mean sell as much as possible"""
+        """between [-1, 1]\n
+            eg. +0.7 means 'spend 70% of money that I have right now to buy btc'\n
+                -0.5 means 'sell 50% of the btc I currently have'"""
         
         # could've designed a lazy loader or related
         # but it's easier, safer, and faster to just map all data in memory
@@ -66,7 +72,7 @@ class BitcoinTradingEnv(Env):
         self.money = self.start_money
         self.btc = self.start_btc
 
-        self.current_moment = random.choice(range(self.memory - 1, len(self.price_history) - self.episode_len))
+        self.current_moment = random.choice(range(self.memory - 1, len(self.price_history) - self.episode_len - self.memory))
         self.last_observation = self.price_history_deriv[self.current_moment - self.memory: self.current_moment]
 
         self.total_balance = self.start_money + self.start_btc * self.price_history[self.current_moment]
@@ -87,7 +93,7 @@ class BitcoinTradingEnv(Env):
 
         def _compute_reward(r0, r1, r):
 
-            if -1 <= (r0 - r1) <= 1:
+            if (self.relative_reward is False) or (-1 <= (r0 - r1) <= 1):
                 return 2 * r
 
             r_med = (r0 + r1) / 2
@@ -124,7 +130,7 @@ class BitcoinTradingEnv(Env):
         reward = _compute_reward(r_sell_all, r_buy_all, reward)   
 
         self.total_balance = new_total_balance
-        
+
         self.steps_todo -= 1
         if (self.steps_todo == 0) or (self.current_moment == len(self.price_history) - 1):
             return observation, reward, True, info
