@@ -81,7 +81,7 @@ class DDPG_agent():
                     episode_len = 10000,
                     noise_std = 0.1,
                     replay_buffer_len = 1024 * 16,
-                    discount = 0.98,
+                    discount = 0.999,
                     batch_size = 128,
                     q_lr = 0.001,
                     policy_lr = 0.0001,
@@ -94,7 +94,7 @@ class DDPG_agent():
                     start_btc = 0.1
                     ):
 
-        self.env = BitcoinTradingEnv(data, start_money, start_btc, state_size)
+        self.env = BitcoinTradingEnv(data, start_money, start_btc, state_size, episode_len)
         self.env.seed(seed)
 
         self.episode_len = episode_len
@@ -164,13 +164,11 @@ class DDPG_agent():
             if done or step_idx >= self.episode_len:
                 return self.env.total_balance
 
-            self.replay_buffer.append((state, action, reward, next_state, 1 if done else 0))
+            self.replay_buffer.append((state, action, reward, next_state))
             
             if step_idx % self.steps_until_sync == 0 and len(self.replay_buffer) >= self.batch_size:
 
                 samples = random.sample(self.replay_buffer[-self.replay_buffer_len:], self.batch_size)
-
-                # s, a, r, s_, d = sample[0], sample[1], sample[2], sample[3], sample[4]
 
                 s_batch = tf.stack([sample[0] for sample in samples], axis=0)
                 a_batch = tf.stack([sample[1] for sample in samples], axis=0)
@@ -230,6 +228,7 @@ class DDPG_agent():
 
                 self.policy_target.set_weights(policy_target_w)    
 
+            state = next_state
             step_idx += 1
 
     def train(self, episodes = 10, save_model = True):
@@ -245,6 +244,33 @@ class DDPG_agent():
 
                 self.q_target.save_weights(f"q_model_ep{ep_idx}_{tag}")
                 self.policy_target.save_weights(f"policy_model_ep{ep_idx}_{tag}")
+
+    def test(self):
+
+        state = self.env.reset()
+
+        step_idx = 0
+        while True:
+
+            if DEBUG:
+                if step_idx % 100 == 0:
+                    print(f"[Step {step_idx}] total balance {self.env.total_balance}, " +\
+                            f"money {self.env.money}, btc {self.env.btc}, " + \
+                            f"money/btc {self.env.price_history[self.env.current_moment]}")
+
+            action = self.get_action(state)
+            next_state, _, done, _ = self.env.step(action)
+
+            if done or step_idx >= self.episode_len:
+                return self.env.total_balance
+            
+            state = next_state
+            step_idx += 1
+
+    @staticmethod
+    def gridsearch():
+        pass
+
 
 def run(data):
     """entry point"""
@@ -304,9 +330,9 @@ def run(data):
 
     agent = DDPG_agent(data, 
                         seed = 0,
-                        episode_len = 10000,
+                        episode_len = 5000,
                         noise_std = 0.1,
-                        replay_buffer_len = 1024,
+                        replay_buffer_len = 1024 * 4,
                         discount = 0.9997,
                         batch_size = 256,
                         q_lr = 0.001,

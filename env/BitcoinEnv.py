@@ -10,15 +10,19 @@ class BitcoinTradingEnv(Env):
 
     def __init__(self, 
                     price_history,
-                    start_money=1000.0,
-                    start_btc=0.0,
-                    memory=5
+                    start_money = 1000.0,
+                    start_btc = 0.0,
+                    memory = 5,
+                    episode_len = 5000
                 ):
         super(BitcoinTradingEnv, self).__init__()
 
         assert(memory >= 1)
         assert(start_btc >= 0.0)
         assert(start_money >= 0)
+
+        self.episode_len = episode_len
+        self.steps_todo = self.episode_len
 
         self.money = 0
         self.start_money = start_money
@@ -57,17 +61,16 @@ class BitcoinTradingEnv(Env):
             eg. self.memory = 3 =>\n
             current moment = 3, (initial) last observation = [p1 / p0, p2 / p1, p3 / p2]"""
 
-        #self.reward_range DEFAULT
-
     def reset(self):
         
         self.money = self.start_money
         self.btc = self.start_btc
 
-        self.current_moment = random.choice(range(self.memory - 1, len(self.price_history) - 1))
+        self.current_moment = random.choice(range(self.memory - 1, len(self.price_history) - self.episode_len))
         self.last_observation = self.price_history_deriv[self.current_moment - self.memory: self.current_moment]
 
         self.total_balance = self.start_money + self.start_btc * self.price_history[self.current_moment]
+        self.steps_todo = self.episode_len
 
         return self.last_observation
 
@@ -84,7 +87,8 @@ class BitcoinTradingEnv(Env):
 
         def _compute_reward(r0, r1, r):
 
-            # return r
+            if -1 <= (r0 - r1) <= 1:
+                return 2 * r
 
             r_med = (r0 + r1) / 2
             return r * (1 + (r - r_med) / ((r0 - r_med) if (r0 > r_med) else (r_med - r0)))
@@ -99,7 +103,7 @@ class BitcoinTradingEnv(Env):
         current_price = self.price_history[self.current_moment]
 
         r_sell_all = np.log((self.money + self.btc * self.price_history[self.current_moment + 1]) / self.total_balance)
-        r_buy_all = np.log((((self.btc + self.money) / current_price) * self.price_history[self.current_moment + 1]) / self.total_balance)
+        r_buy_all = np.log(((self.btc + self.money / current_price) * self.price_history[self.current_moment + 1]) / self.total_balance)
 
         if action > 0:
             
@@ -121,7 +125,8 @@ class BitcoinTradingEnv(Env):
 
         self.total_balance = new_total_balance
         
-        if self.current_moment == len(self.price_history) - 1:
+        self.steps_todo -= 1
+        if (self.steps_todo == 0) or (self.current_moment == len(self.price_history) - 1):
             return observation, reward, True, info
 
         return observation, reward, False, info
