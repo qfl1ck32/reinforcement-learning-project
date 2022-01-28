@@ -1,4 +1,5 @@
 # Author: Stanciu Andrei Calin
+# Team: Rusu Andrei, Mitoi Stefan, (me)
 #
 # design inspiration for classes and some default parameters taken from
 # Unibuc - Introducere in Reinforcement Learning - lab 7
@@ -9,6 +10,7 @@
 import numpy as np
 
 from time import time
+from copy import deepcopy
 
 import random
 from numpy.random import normal
@@ -20,7 +22,6 @@ from tensorflow.keras.losses import *
 from tensorflow.keras.optimizers import *
 
 from env.BitcoinEnv import BitcoinTradingEnv
-
 
 class Q(Model):
 
@@ -136,7 +137,7 @@ class DDPG_agent():
         self.q_target.set_weights(self.q.get_weights())
         self.policy_target.set_weights(self.policy.get_weights())
 
-        i = 1
+        step_idx = 1
         while True:
 
             action = self.get_action(state)
@@ -147,12 +148,9 @@ class DDPG_agent():
 
             self.replay_buffer.append((state, action, reward, next_state, 1 if done else 0))
             
-            if i % self.steps_until_sync == 0 and len(self.replay_buffer) >= self.batch_size:
+            if step_idx % self.steps_until_sync == 0 and len(self.replay_buffer) >= self.batch_size:
 
                 samples = random.sample(self.replay_buffer[-self.replay_buffer_len:], self.batch_size)
-
-                # TODO remove after debug
-                tf.debugging.enable_check_numerics()
 
                 # s, a, r, s_, d = sample[0], sample[1], sample[2], sample[3], sample[4]
 
@@ -160,15 +158,6 @@ class DDPG_agent():
                 a_batch = tf.stack([sample[1] for sample in samples], axis=0)
                 r_batch = tf.stack([sample[2] for sample in samples], axis=0)
                 s_next_batch = tf.stack([sample[3] for sample in samples], axis=0)
-                
-                '''print(s_batch[0][1].dtype)
-                print(a_batch[0].dtype)
-                print(r_batch[0].dtype)
-                print(s_next_batch[0][1].dtype)
-                print(s_batch.shape)
-                print(a_batch.shape)
-                print(r_batch.shape)
-                print(s_next_batch.shape)'''
 
                 # train Q network
 
@@ -185,69 +174,23 @@ class DDPG_agent():
                     q_loss = (q_pred - q_gt) ** 2
 
                 q_gradients = q_tape.gradient(q_loss, q_vars)
-                self.q_optimizer.apply_gradients(zip(q_gradients, q_vars))
-
-                print(f"OK {i}")
+                self.q_optimizer.apply_gradients(zip(q_gradients, q_vars)) 
 
                 # train Policy network
 
-                # old
-                '''for sample in samples:
+                with tf.GradientTape() as policy_tape:
 
-                    s, a, r, s_, d = sample
+                    policy_vars = self.policy.trainable_variables
+                    policy_tape.watch(policy_vars)
 
-                    # train (gradient descent) 
+                    a_pred_batch = self.policy(s_batch)
+                    
+                    policy_loss = -self.q(tf.concat([s_batch, a_pred_batch], axis=1))
 
-                    tf.debugging.enable_check_numerics()
+                policy_gradients = policy_tape.gradient(policy_loss, policy_vars)
+                self.policy_optimizer.apply_gradients(zip(policy_gradients, policy_vars))
 
-                    with tf.GradientTape(watch_accessed_variables = True) as q_tape:
-
-                        q_vars = self.q.trainable_variables
-                        q_tape.watch(q_vars)
-
-                        target_q_input = np.insert(s_, len(s_) - 1, self.policy_target(np.array([s_])))
-                        train_q_input = np.insert(s, len(s) - 1, a)
-
-                        q_gt = r + self.discount * (1 - d) * self.q_target(np.array([target_q_input]))
-                        q_pred = self.q(np.array([train_q_input]))
-
-                        q_loss = (q_gt - q_pred) ** 2
-
-                    q_gradients = q_tape.gradient(q_loss, q_vars)
-                    self.q_optimizer.apply_gradients(zip(q_gradients, q_vars))
-
-                    print(q_gradients)
-                    print("OK HERE =====================================================================")
-
-                    # TODO adjust watch_accessed_variables ???
-                    with tf.GradientTape(watch_accessed_variables = True) as policy_tape:
-
-                        policy_vars = self.policy.trainable_variables
-                        policy_tape.watch(policy_vars)
-
-                        policy_input = np.insert(s, len(s) - 1, self.policy(np.array([s])))
-
-                        policy_loss = -self.q(np.array([policy_input]))
-
-                    policy_gradients = policy_tape.gradient(policy_loss, policy_vars)
-
-                    print(policy_gradients)
-
-                    self.policy_optimizer.apply_gradients(zip(policy_gradients, policy_vars))
-
-                    # polyak averaging
-
-                    q_target_w = self.q_target.get_weights()
-                    q_train_w = self.q.get_weights()
-
-                    q_target_w = self.polyak * q_target_w + (1 - self.polyak) * q_train_w
-                    self.q_target.set_weights(q_target_w)
-
-                    policy_target_w = self.policy_target.get_weights()
-                    policy_train_w = self.policy.get_weights()
-
-                    policy_target_w = self.polyak * policy_target_w + (1 - self.polyak) * policy_train_w
-                    self.policy_target_w.set_weights(policy_target_w)        '''        
+                # polyak averaging
 
                 q_target_w = self.q_target.get_weights()
                 q_train_w = self.q.get_weights()
@@ -269,7 +212,7 @@ class DDPG_agent():
 
                 self.policy_target.set_weights(policy_target_w)    
 
-            i += 1
+            step_idx += 1
 
     def train(self, episodes = 1, save_model = True):
 
@@ -304,6 +247,9 @@ def run(data):
                 print(f"{i}: {fr[i]}")
 
     #_check_gap_frequency(data)
+
+    # TODO remove after debug
+    tf.debugging.enable_check_numerics()
 
     data_ = []
     for i in range(data.shape[0]):
