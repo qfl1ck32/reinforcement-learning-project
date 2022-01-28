@@ -161,14 +161,14 @@ class DDPG_agent():
                 r_batch = tf.stack([sample[2] for sample in samples], axis=0)
                 s_next_batch = tf.stack([sample[3] for sample in samples], axis=0)
                 
-                print(s_batch[0][1].dtype)
+                '''print(s_batch[0][1].dtype)
                 print(a_batch[0].dtype)
                 print(r_batch[0].dtype)
                 print(s_next_batch[0][1].dtype)
                 print(s_batch.shape)
                 print(a_batch.shape)
                 print(r_batch.shape)
-                print(s_next_batch.shape)
+                print(s_next_batch.shape)'''
 
                 # train Q network
 
@@ -180,8 +180,6 @@ class DDPG_agent():
                     q_pred = self.q(tf.concat([s_batch, a_batch], axis=1))
 
                     a_next_batch = self.policy_target(s_next_batch)
-                    print(s_next_batch.shape)
-                    print(a_next_batch.shape)
                     q_gt = r_batch + self.discount * self.q_target(tf.concat([s_next_batch, a_next_batch], axis=1))
 
                     q_loss = (q_pred - q_gt) ** 2
@@ -254,14 +252,22 @@ class DDPG_agent():
                 q_target_w = self.q_target.get_weights()
                 q_train_w = self.q.get_weights()
 
-                q_target_w = self.polyak * q_target_w + (1 - self.polyak) * q_train_w
+                assert(len(q_target_w) == len(q_train_w))
+
+                for i in range(len(q_target_w)):
+                    q_target_w[i] = self.polyak * q_target_w[i] + (1 - self.polyak) * q_train_w[i]
+
                 self.q_target.set_weights(q_target_w)
 
                 policy_target_w = self.policy_target.get_weights()
                 policy_train_w = self.policy.get_weights()
 
-                policy_target_w = self.polyak * policy_target_w + (1 - self.polyak) * policy_train_w
-                self.policy_target_w.set_weights(policy_target_w)    
+                assert(len(policy_target_w) == len(policy_train_w))
+
+                for i in range(len(policy_target_w)):
+                    policy_target_w[i] = self.polyak * policy_target_w[i] + (1 - self.polyak) * policy_train_w[i]
+
+                self.policy_target.set_weights(policy_target_w)    
 
             i += 1
 
