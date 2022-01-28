@@ -87,7 +87,7 @@ class BitcoinTradingEnv(Env):
         info = {}   # unused
 
         # if action > 0, buy btc with self.money * action
-        # if action < 0, sell btc with self.btc * action
+        # if action < 0, sell btc with self.btc * (-action)
 
         current_price = self.price_history[self.current_moment]
 

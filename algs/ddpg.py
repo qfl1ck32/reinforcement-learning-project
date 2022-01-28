@@ -35,8 +35,8 @@ class Q(Model):
         self.input_layer = InputLayer(input_shape = input_shape)
 
         self.hidden_layers = []
-        self.hidden_layers.append(Dense(64, activation = "relu"))
-        #self.hidden_layers.append(Dense(32, activation = "relu"))
+        self.hidden_layers.append(Dense(128, activation = "relu"))
+        self.hidden_layers.append(Dense(32, activation = "relu"))
 
         self.output_layer = Dense(1, activation = "linear")
     
@@ -58,8 +58,8 @@ class Policy(Model):
         self.input_layer = InputLayer(input_shape = input_shape)
 
         self.hidden_layers = []
-        self.hidden_layers.append(Dense(64, activation = "relu"))
-        #self.hidden_layers.append(Dense(32, activation = "relu"))
+        self.hidden_layers.append(Dense(128, activation = "relu"))
+        self.hidden_layers.append(Dense(32, activation = "relu"))
 
         self.output_layer = Dense(1, activation = "tanh")
 
@@ -135,6 +135,9 @@ class DDPG_agent():
         self.policy_optimizer = SGD(self.policy_lr, self.policy_momentum)
 
     def get_action(self, state):
+
+        if self.env.money < 0.1 or self.env.btc < 0.001:
+            self.noise_std = 0.5
         
         policy_action = self.policy(np.array([state]))[0]
         return min(max(policy_action + normal(0, self.noise_std), np.array([-1])), np.array([1]))
@@ -150,7 +153,7 @@ class DDPG_agent():
         while True:
 
             if DEBUG:
-                if step_idx % 5 == 0:
+                if step_idx % 100 == 0:
                     print(f"[Step {step_idx}] total balance {self.env.total_balance}, " +\
                             f"money {self.env.money}, btc {self.env.btc}, " + \
                             f"money/btc {self.env.price_history[self.env.current_moment]}")
@@ -302,7 +305,7 @@ def run(data):
     agent = DDPG_agent(data, 
                         seed = 0,
                         episode_len = 10000,
-                        noise_std = 0.05,
+                        noise_std = 0.1,
                         replay_buffer_len = 1024,
                         discount = 0.99,
                         batch_size = 256,
@@ -310,8 +313,8 @@ def run(data):
                         policy_lr = 0.0001,
                         q_momentum = 0.9,
                         policy_momentum = 0.9,
-                        polyak = 0.9,
-                        steps_until_sync = 10,
+                        polyak = 0.8,
+                        steps_until_sync = 20,
                         state_size = 5,
                         start_money = 10000,
                         start_btc = 0.1

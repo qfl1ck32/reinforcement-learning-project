@@ -10,3 +10,33 @@ Varianta 2: commit 128aef0,
             am modificat starea sa contina derivata pretului wrt timp
             si reward ul a fost modificat (am eliminat ** 2)
             pare ca merge mai bine dar tot isi ia bataie
+
+Varianta 3: commit b73db7c,
+            reward ul este acum dat de log return
+            alge bug uri fixate,
+            ma confrunt cu problema:
+            cand ajunge sa aiba foarte putini bani/ btc,
+            actiunea devine mai putin relevanta,
+            iar suma de bani totala ramane constanta,
+            iar reteaua nu prea mai are ce sa antreneze
+            * ar trebui sa gasesc o modalitate de reward
+            invarianta la cantitatea de bani avuta in cont
+            inainte de tranzactie
+
+            idei:
+                * sa calculez reward-ul relativ la alte optiuni
+                (sa zicem comparat cu: - a cumpara de toti banii,
+                                       - a vinde toti btc,
+                                       - a nu face nimic)
+                    ar ajuta incat rewardul va trece de la a indica
+                    evolutia banilor in cont in mod direct,
+                    la a idica cat de buna a fost decizia,
+                    comparat cu alte decizii
+                    asta in speranta ca vom ajuta reteaua actorului (policy-ului)
+                    sa coreleze mai usor evolutia graficului cu 
+                    "tipul" de decizie pe care sa il ia
+
+                * daca cantitatea de money / btc din cont se stabilizeaza
+                    sa maresc std-ul erorii cand aleg urmatoarea actiune
+                    (pe timpul train-ului)
+                
