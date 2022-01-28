@@ -10,15 +10,23 @@ class BitcoinTradingEnv(Env):
 
     def __init__(self, 
                     price_history,
-                    start_money=1000.0,
-                    start_btc=0.0,
-                    memory=5
+                    start_money = 1000.0,
+                    start_btc = 0.0,
+                    memory = 5,
+                    episode_len = 5000,
+                    relative_reward = True,
                 ):
         super(BitcoinTradingEnv, self).__init__()
 
         assert(memory >= 1)
         assert(start_btc >= 0.0)
         assert(start_money >= 0)
+
+        self.episode_len = episode_len
+        self.steps_todo = self.episode_len
+
+        self.relative_reward = relative_reward
+        """parameter that slightly tweaks reward mechanism in some cases"""
 
         self.money = 0
         self.start_money = start_money
@@ -35,7 +43,9 @@ class BitcoinTradingEnv(Env):
         self.last_observation = None
 
         self.action_space = Box(low=-1.0, high=1.0, dtype=np.float32, shape=(1,))
-        """1 means buy as much as possible, -1 mean sell as much as possible"""
+        """between [-1, 1]\n
+            eg. +0.7 means 'spend 70% of money that I have right now to buy btc'\n
+                -0.5 means 'sell 50% of the btc I currently have'"""
         
         # could've designed a lazy loader or related
         # but it's easier, safer, and faster to just map all data in memory
@@ -57,17 +67,16 @@ class BitcoinTradingEnv(Env):
             eg. self.memory = 3 =>\n
             current moment = 3, (initial) last observation = [p1 / p0, p2 / p1, p3 / p2]"""
 
-        #self.reward_range DEFAULT
-
     def reset(self):
         
         self.money = self.start_money
         self.btc = self.start_btc
 
-        self.current_moment = random.choice(range(self.memory - 1, len(self.price_history) - 1))
+        self.current_moment = random.choice(range(self.memory - 1, len(self.price_history) - self.episode_len - self.memory))
         self.last_observation = self.price_history_deriv[self.current_moment - self.memory: self.current_moment]
 
         self.total_balance = self.start_money + self.start_btc * self.price_history[self.current_moment]
+        self.steps_todo = self.episode_len
 
         return self.last_observation
 
@@ -82,6 +91,14 @@ class BitcoinTradingEnv(Env):
     # (observation, reward, done, info)
     def step(self, action):
 
+        def _compute_reward(r0, r1, r):
+
+            if (self.relative_reward is False) or (-1 <= (r0 - r1) <= 1):
+                return 2 * r
+
+            r_med = (r0 + r1) / 2
+            return r * (1 + (r - r_med) / ((r0 - r_med) if (r0 > r_med) else (r_med - r0)))
+
         observation = None
         reward = None
         info = {}   # unused
@@ -90,6 +107,9 @@ class BitcoinTradingEnv(Env):
         # if action < 0, sell btc with self.btc * (-action)
 
         current_price = self.price_history[self.current_moment]
+
+        r_sell_all = np.log((self.money + self.btc * self.price_history[self.current_moment + 1]) / self.total_balance)
+        r_buy_all = np.log(((self.btc + self.money / current_price) * self.price_history[self.current_moment + 1]) / self.total_balance)
 
         if action > 0:
             
@@ -104,15 +124,15 @@ class BitcoinTradingEnv(Env):
         self.current_moment += 1
         observation = np.insert(self.last_observation[1:], self.memory - 1, self.price_history_deriv[self.current_moment - 1])
 
-        # reward as return * 10
-
         new_total_balance = self.btc * self.price_history[self.current_moment] + self.money
+
         reward = np.log(new_total_balance / self.total_balance)
-        #reward = 10 * (new_total_balance - self.total_balance) / self.total_balance
+        reward = _compute_reward(r_sell_all, r_buy_all, reward)   
 
         self.total_balance = new_total_balance
-        
-        if self.current_moment == len(self.price_history) - 1:
+
+        self.steps_todo -= 1
+        if (self.steps_todo == 0) or (self.current_moment == len(self.price_history) - 1):
             return observation, reward, True, info
 
         return observation, reward, False, info
