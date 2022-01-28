@@ -12,11 +12,11 @@ class BitcoinTradingEnv(Env):
                     price_history,
                     start_money=1000.0,
                     start_btc=0.0,
-                    price_memory_len=5
+                    memory=5
                 ):
         super(BitcoinTradingEnv, self).__init__()
 
-        assert(price_memory_len >= 1)
+        assert(memory >= 1)
         assert(start_btc >= 0.0)
         assert(start_money >= 0)
 
@@ -28,7 +28,7 @@ class BitcoinTradingEnv(Env):
         self.start_btc = start_btc
         """how much btc at the beginnig"""
 
-        self.memory = price_memory_len
+        self.memory = memory
         self.observation_space = Box(low=0.0, high=100000.0, dtype=np.float32, shape=(1, self.memory))
         """price over last <<self.memory>> entries"""
 
@@ -44,8 +44,18 @@ class BitcoinTradingEnv(Env):
         self.price_history = price_history.astype(np.float32)
         """all prices in a 1D array"""
 
-        self.current_moment = self.memory - 1
-        """clock"""
+        self.price_history_deriv = np.zeros(shape=(price_history.shape[0] - 1,))
+        """prices derivative wrt time"""
+
+        for i in range(len(self.price_history_deriv)):
+            self.price_history_deriv[i] = self.price_history[i + 1] / self.price_history[i]
+
+        self.price_history_deriv = self.price_history_deriv.astype(np.float32)
+
+        self.current_moment = self.memory
+        """clock, starting from 0\n
+            eg. self.memory = 3 =>\n
+            current moment = 3, (initial) last observation = [p1 / p0, p2 / p1, p3 / p2]"""
 
         #self.reward_range DEFAULT
 
@@ -55,7 +65,7 @@ class BitcoinTradingEnv(Env):
         self.btc = self.start_btc
 
         self.current_moment = self.memory - 1
-        self.last_observation = np.array(self.price_history[:self.memory])
+        self.last_observation = self.price_history_deriv[:self.memory]
 
         self.total_balance = self.start_money + self.start_btc * self.price_history[self.current_moment]
 
@@ -92,10 +102,12 @@ class BitcoinTradingEnv(Env):
             self.btc *= (1 - action)
 
         self.current_moment += 1
-        observation = np.insert(self.last_observation[1:], self.memory - 1, self.price_history[self.current_moment])
+        observation = np.insert(self.last_observation[1:], self.memory - 1, self.price_history_deriv[self.current_moment - 1])
+
+        # reward as return * 10
 
         new_total_balance = self.btc * self.price_history[self.current_moment] + self.money
-        reward = (10 * (new_total_balance - self.total_balance) / self.total_balance) ** 2
+        reward = 10 * (new_total_balance - self.total_balance) / self.total_balance
 
         self.total_balance = new_total_balance
         

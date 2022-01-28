@@ -1,0 +1,8 @@
+Aici voi detalia toate "notitele" / comentariile legate de progresul codului
+Vairianta initiala: commit 1a7128a,
+                    nu se intampla aproape nimic, ruleaza fara erori
+                    daca maresc numarul de layere din retea 
+                    incep sa apara erori legate de valori infinite / nan s
+                    de asemenea, ma confrunt cu vanishing gradient
+                    incerc sa normalizez datele / sa schimb functia de reward
+
