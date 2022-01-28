@@ -82,6 +82,13 @@ class BitcoinTradingEnv(Env):
     # (observation, reward, done, info)
     def step(self, action):
 
+        def _compute_reward(r0, r1, r):
+
+            # return r
+
+            r_med = (r0 + r1) / 2
+            return r * (1 + (r - r_med) / ((r0 - r_med) if (r0 > r_med) else (r_med - r0)))
+
         observation = None
         reward = None
         info = {}   # unused
@@ -90,6 +97,9 @@ class BitcoinTradingEnv(Env):
         # if action < 0, sell btc with self.btc * (-action)
 
         current_price = self.price_history[self.current_moment]
+
+        r_sell_all = np.log((self.money + self.btc * self.price_history[self.current_moment + 1]) / self.total_balance)
+        r_buy_all = np.log((((self.btc + self.money) / current_price) * self.price_history[self.current_moment + 1]) / self.total_balance)
 
         if action > 0:
             
@@ -104,11 +114,10 @@ class BitcoinTradingEnv(Env):
         self.current_moment += 1
         observation = np.insert(self.last_observation[1:], self.memory - 1, self.price_history_deriv[self.current_moment - 1])
 
-        # reward as return * 10
-
         new_total_balance = self.btc * self.price_history[self.current_moment] + self.money
+
         reward = np.log(new_total_balance / self.total_balance)
-        #reward = 10 * (new_total_balance - self.total_balance) / self.total_balance
+        reward = _compute_reward(r_sell_all, r_buy_all, reward)   
 
         self.total_balance = new_total_balance
         

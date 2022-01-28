@@ -243,8 +243,8 @@ class DDPG_agent():
 
                 tag = int(time())
 
-                self.q_target.save(f"q_model_ep{ep_idx}_{tag}")
-                self.policy_target.save(f"policy_model_ep{ep_idx}_{tag}")
+                self.q_target.save_weights(f"q_model_ep{ep_idx}_{tag}")
+                self.policy_target.save_weights(f"policy_model_ep{ep_idx}_{tag}")
 
 def run(data):
     """entry point"""
@@ -307,7 +307,7 @@ def run(data):
                         episode_len = 10000,
                         noise_std = 0.1,
                         replay_buffer_len = 1024,
-                        discount = 0.99,
+                        discount = 0.9997,
                         batch_size = 256,
                         q_lr = 0.001,
                         policy_lr = 0.0001,
