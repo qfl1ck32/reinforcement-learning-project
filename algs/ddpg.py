@@ -9,6 +9,8 @@
 
 import numpy as np
 
+from logger.logger import logger
+
 from time import time
 from copy import deepcopy
 
@@ -31,7 +33,8 @@ class Q(Model):
         self.input_layer = InputLayer(input_shape = input_shape)
 
         self.hidden_layers = []
-        self.hidden_layers.append(Dense(128, activation = "relu"))
+        self.hidden_layers.append(Dense(64, activation = "relu"))
+        #self.hidden_layers.append(Dense(32, activation = "relu"))
 
         self.output_layer = Dense(1, activation = "linear")
     
@@ -53,7 +56,8 @@ class Policy(Model):
         self.input_layer = InputLayer(input_shape = input_shape)
 
         self.hidden_layers = []
-        self.hidden_layers.append(Dense(128, activation = "relu"))
+        self.hidden_layers.append(Dense(64, activation = "relu"))
+        #self.hidden_layers.append(Dense(32, activation = "relu"))
 
         self.output_layer = Dense(1, activation = "tanh")
 
@@ -149,6 +153,8 @@ class DDPG_agent():
             self.replay_buffer.append((state, action, reward, next_state, 1 if done else 0))
             
             if step_idx % self.steps_until_sync == 0 and len(self.replay_buffer) >= self.batch_size:
+                
+                logger.info(f"Train batch at step {step_idx}, total balance {self.env.total_balance}")
 
                 samples = random.sample(self.replay_buffer[-self.replay_buffer_len:], self.batch_size)
 
