@@ -6,3 +6,7 @@ Vairianta initiala: commit 1a7128a,
                     de asemenea, ma confrunt cu vanishing gradient
                     incerc sa normalizez datele / sa schimb functia de reward
 
+Varianta 2: commit 128aef0,
+            am modificat starea sa contina derivata pretului wrt timp
+            si reward ul a fost modificat (am eliminat ** 2)
+            pare ca merge mai bine dar tot isi ia bataie

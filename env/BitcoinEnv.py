@@ -64,8 +64,8 @@ class BitcoinTradingEnv(Env):
         self.money = self.start_money
         self.btc = self.start_btc
 
-        self.current_moment = self.memory - 1
-        self.last_observation = self.price_history_deriv[:self.memory]
+        self.current_moment = random.choice(range(self.memory - 1, len(self.price_history) - 1))
+        self.last_observation = self.price_history_deriv[self.current_moment - self.memory: self.current_moment]
 
         self.total_balance = self.start_money + self.start_btc * self.price_history[self.current_moment]
 
@@ -91,6 +91,8 @@ class BitcoinTradingEnv(Env):
 
         current_price = self.price_history[self.current_moment]
 
+        assert(-1 <= action <= 1)
+
         if action > 0:
             
             self.btc += (self.money * action) / current_price
@@ -107,7 +109,8 @@ class BitcoinTradingEnv(Env):
         # reward as return * 10
 
         new_total_balance = self.btc * self.price_history[self.current_moment] + self.money
-        reward = 10 * (new_total_balance - self.total_balance) / self.total_balance
+        reward = np.log(new_total_balance / self.total_balance)
+        #reward = 10 * (new_total_balance - self.total_balance) / self.total_balance
 
         self.total_balance = new_total_balance
         
