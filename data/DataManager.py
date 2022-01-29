@@ -2,7 +2,7 @@ import csv
 from math import isnan
 from typing import List
 
-from constants import trading_data_file_directory, start_year_for_data, data_directory, processed_data_filename
+from constants import TRADING_DATA_FILE_DIRECTORY, START_YEAR_FOR_DATA, DATA_DIRECTORY, PROCESSED_DATA_FILENAME
 from data.TradingData import TradingData
 
 from datetime import datetime
@@ -12,19 +12,19 @@ import os
 
 
 def format_file_path(starting_with_year: int):
-    return f"{data_directory}/{processed_data_filename}-{starting_with_year}.obj"
+    return f"{DATA_DIRECTORY}/{PROCESSED_DATA_FILENAME}-{starting_with_year}.obj"
 
 
-def exists_data(starting_with_year: int = start_year_for_data):
+def exists_data(starting_with_year: int = START_YEAR_FOR_DATA):
     return os.path.exists(format_file_path(starting_with_year))
 
 
-def generate_and_save_data(starting_with_year=start_year_for_data, limit=float('+inf')):
+def generate_and_save_data(starting_with_year=START_YEAR_FOR_DATA, limit=float('+inf')):
     data: List[TradingData] = []
 
     year_to_timestamp = datetime(starting_with_year, 1, 1).timestamp()
 
-    with open(trading_data_file_directory, newline='') as file:
+    with open(TRADING_DATA_FILE_DIRECTORY, newline='') as file:
         reader = csv.reader(file, delimiter=',')
 
         reader.__next__()
@@ -50,11 +50,11 @@ def generate_and_save_data(starting_with_year=start_year_for_data, limit=float('
     return data
 
 
-def save_data(data: List[TradingData], starting_with_year=start_year_for_data):
+def save_data(data: List[TradingData], starting_with_year=START_YEAR_FOR_DATA):
     with open(format_file_path(starting_with_year), "wb") as file:
         pickle.dump(data, file)
 
 
-def load_data(starting_with_year=start_year_for_data) -> List[TradingData]:
+def load_data(starting_with_year=START_YEAR_FOR_DATA) -> List[TradingData]:
     with open(format_file_path(starting_with_year), "rb") as file:
         return pickle.load(file)

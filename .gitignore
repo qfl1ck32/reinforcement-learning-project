@@ -1,9 +1,10 @@
 .idea/
 **/__pycache__/
 /.vscode
-./data/trading.csv
-./data/cleardata.csv
-./data/data.csv
+/data/trading.csv
+/data/cleardata.csv
+/data/trading-data*
+/data/data.csv
 local*.py
 /local
 q_model*

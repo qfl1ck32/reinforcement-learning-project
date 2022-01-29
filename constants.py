@@ -1,7 +1,7 @@
-data_directory = "./data"
+DATA_DIRECTORY = "./data"
 
-trading_data_file_directory = f"{data_directory}/trading.csv"
+TRADING_DATA_FILE_DIRECTORY = f"{DATA_DIRECTORY}/trading.csv"
 
-processed_data_filename = "trading-data"
+PROCESSED_DATA_FILENAME = "trading-data"
 
-start_year_for_data = 2015
+START_YEAR_FOR_DATA = 2015
