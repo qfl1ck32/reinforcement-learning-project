@@ -77,13 +77,12 @@ class Policy(Model):
     
 class Q_LSTM(Model):
 
-    def __init__(self, input_shape):
+    def __init__(self):
         super(Q, self).__init__()
 
-        self.input_layer = LSTM(input_shape = input_shape)
+        self.input_layer = LSTM(64)
 
         self.hidden_layers = []
-        self.hidden_layers.append(Dense(64, activation = "relu"))
         self.hidden_layers.append(Dense(32, activation = "relu"))
         self.hidden_layers.append(Dense(16, activation = "relu"))
 
@@ -101,13 +100,12 @@ class Q_LSTM(Model):
 
 class Policy_LSTM(Model):
 
-    def __init__(self, input_shape):
+    def __init__(self):
         super(Policy, self).__init__()
 
-        self.input_layer = InputLayer(input_shape = input_shape)
+        self.input_layer = InputLayer(64)
 
         self.hidden_layers = []
-        self.hidden_layers.append(Dense(64, activation = "relu"))
         self.hidden_layers.append(Dense(32, activation = "relu"))
         self.hidden_layers.append(Dense(16, activation = "relu"))
 
@@ -434,11 +432,11 @@ class DDPG_agent_lstm():
 
         self.lstm_timesteps = lstm_timesteps
 
-        self.q = Q_LSTM(input_shape = (lstm_timesteps, 1 + state_size,))
-        self.q_target = Q_LSTM(input_shape = (lstm_timesteps, 1 + state_size,))
+        self.q = Q_LSTM()
+        self.q_target = Q_LSTM()
 
-        self.policy = Policy_LSTM(input_shape = (lstm_timesteps, state_size,))
-        self.policy_target = Policy_LSTM(input_shape = (lstm_timesteps, state_size,))
+        self.policy = Policy_LSTM()
+        self.policy_target = Policy_LSTM()
 
         q_input_shape = tf.TensorShape([None, lstm_timesteps, 1 + state_size])
         policy_input_shape = tf.TensorShape([None, lstm_timesteps, state_size])
@@ -743,22 +741,22 @@ def run(data):
 
     agent = DDPG_agent(data, 
                         seed = 0,
-                        episode_len = 10000,
+                        episode_len = 1000,
                         noise_std = 0.1,
                         replay_buffer_len = 1024 * 64,
-                        discount = 0.985,
-                        batch_size = 1024,
+                        discount = 0.95,
+                        batch_size = 256,
                         q_lr = 1e-4,
                         policy_lr = 1e-5,
                         q_momentum = 0.9,
                         policy_momentum = 0.9,
                         polyak = 0.9,
                         steps_until_sync = 50,
-                        state_size = 10,
+                        state_size = 5,
                         start_money = 1000,
                         start_btc = 0.1,
                         stats4render = True,
                         control = True
                     )
-    agent.train(episodes = 100, save_model = False, render = True)
+    agent.train(episodes = 1000, save_model = False, render = True)
     agent.test(data)

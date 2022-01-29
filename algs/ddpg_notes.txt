@@ -46,3 +46,13 @@ Varianta 4: commit FIXME
             ce nu am incercat inca
             este sa compar cu actiuni random
             ca baseline
+
+Variante urmatoare: commit 6a563f00,
+                    dupa mai multe incercari fara rezultate care sa surprinda
+                    incerc sa introduc in retelele neurale layere LSTM
+                    alte observatii:
+                        * am adaugat un "balance" de control
+                            in care actiunile sunt luate random,
+                            in paralel cu env.step
+
+                        * am observat ca un gamma mai mic il ajuta sa dea randament mai bun
