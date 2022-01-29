@@ -35,8 +35,9 @@ class Q(Model):
         self.input_layer = InputLayer(input_shape = input_shape)
 
         self.hidden_layers = []
-        self.hidden_layers.append(Dense(128, activation = "relu"))
+        self.hidden_layers.append(Dense(64, activation = "relu"))
         self.hidden_layers.append(Dense(32, activation = "relu"))
+        self.hidden_layers.append(Dense(16, activation = "relu"))
 
         self.output_layer = Dense(1, activation = "linear")
     
@@ -58,8 +59,9 @@ class Policy(Model):
         self.input_layer = InputLayer(input_shape = input_shape)
 
         self.hidden_layers = []
-        self.hidden_layers.append(Dense(128, activation = "relu"))
+        self.hidden_layers.append(Dense(64, activation = "relu"))
         self.hidden_layers.append(Dense(32, activation = "relu"))
+        self.hidden_layers.append(Dense(16, activation = "relu"))
 
         self.output_layer = Dense(1, activation = "tanh")
 
@@ -413,13 +415,13 @@ def run(data):
 
     agent = DDPG_agent(data, 
                         seed = 0,
-                        episode_len = 20000,
+                        episode_len = 10000,
                         noise_std = 0.1,
-                        replay_buffer_len = 1024 * 16,
-                        discount = 0.9997,
+                        replay_buffer_len = 1024 * 64,
+                        discount = 0.985,
                         batch_size = 1024,
-                        q_lr = 0.001,
-                        policy_lr = 0.0001,
+                        q_lr = 1e-4,
+                        policy_lr = 1e-5,
                         q_momentum = 0.9,
                         policy_momentum = 0.9,
                         polyak = 0.9,
@@ -430,5 +432,5 @@ def run(data):
                         stats4render = True,
                         control = True
                     )
-    agent.train(episodes = 50, save_model = False, render = True)
+    agent.train(episodes = 100, save_model = False, render = True)
     agent.test(data)
