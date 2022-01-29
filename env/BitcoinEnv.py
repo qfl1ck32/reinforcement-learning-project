@@ -22,6 +22,7 @@ class BitcoinTradingEnv(Env):
                     memory = 5,
                     episode_len = 5000,
                     stats4render = True,
+                    control = True
                 ):
         super(BitcoinTradingEnv, self).__init__()
 
@@ -34,9 +35,19 @@ class BitcoinTradingEnv(Env):
         """Must be true to be able to call .render(),
             but it consumes more memory"""
 
+        self.control = control
+        """Reserve fields for control stats\n
+            (i.e. for each step, another random step is taken
+            and the balance is updated in parralel;\n
+            at the end, control stats ar plotted for comparison)"""
+
         if self.stats4render:
+
             self.balance_money_btc = []
             """List of tuples (total balance, money, btc)"""
+
+            if self.control:
+                self.balance_money_btc_control = []
 
         self.steps_todo = episode_len
         self.episode_len = episode_len
@@ -49,6 +60,12 @@ class BitcoinTradingEnv(Env):
         self.btc = 0
         self.start_btc = start_btc
         """how much btc at the beginnig"""
+
+        if self.control:
+            
+            self.money_control = 0
+            self.btc_control = 0
+            self.total_balance_control = 0
 
         self.memory = memory
         self.observation_space = Box(low=0.0, high=100000.0, dtype=np.float32, shape=(1, self.memory))
@@ -93,8 +110,17 @@ class BitcoinTradingEnv(Env):
         self.total_balance = self.start_money + self.start_btc * self.price_history[self.current_moment]
         self.steps_todo = self.episode_len
 
+        if self.control:
+
+            self.money_control = self.start_money
+            self.btc_control = self.start_btc
+            self.total_balance_control = self.start_money + self.start_btc * self.price_history[self.current_moment]
+
         if self.stats4render:
             self.balance_money_btc.append((self.total_balance, self.money, self.btc))
+
+            if self.control:
+                self.balance_money_btc_control.append((self.total_balance_control, self.money_control, self.btc_control))
 
         return self.last_observation
 
@@ -139,8 +165,29 @@ class BitcoinTradingEnv(Env):
 
         self.total_balance = new_total_balance
 
+        if self.control:
+            """re-calculate everything for the control statistics"""
+
+            random_action = random.randint(-1, 1)
+
+            if random_action > 0:
+            
+                self.btc_control += (self.money_control * random_action) / current_price
+                self.money_control *= (1 - random_action)
+
+            elif random_action < 0:
+                
+                self.money_control += self.btc_control * (-random_action) * current_price
+                self.btc_control *= 1 + random_action
+
+            self.total_balance_control = self.btc_control * self.price_history[self.current_moment] + self.money_control
+
         if self.stats4render:
+
             self.balance_money_btc.append((self.total_balance, self.money, self.btc))
+
+            if self.control:
+                self.balance_money_btc_control.append((self.total_balance_control, self.money_control, self.btc_control))
 
         self.steps_todo -= 1
         if (self.steps_todo == 0) or (self.current_moment == len(self.price_history) - 1):
@@ -164,35 +211,82 @@ class BitcoinTradingEnv(Env):
         start_moment = self.current_moment + self.steps_todo - self.episode_len
         end_moment = start_moment + self.episode_len
 
-        fig, (price_time, balance_time) = plt.subplots(2)
-        fig.subplots_adjust(hspace=0.6)
+        if self.control:
+            
+            fig, (price_time, balance_time, balance_time_control) = plt.subplots(3)
+            fig.subplots_adjust(hspace=0.6)
 
-        price_time.plot(range(start_moment, end_moment + 1),
-                        self.price_history[start_moment: end_moment + 1],
-                        color = 'gold')
+            price_time.plot(range(start_moment, end_moment + 1),
+                            self.price_history[start_moment: end_moment + 1],
+                            color = 'gold')
 
-        price_time.set_title("Price evolution")
-        price_time.set_xlabel("time")
-        price_time.set_ylabel("$ / BTC")
-        price_time.grid(True)
+            price_time.set_title("Price evolution")
+            price_time.set_xlabel("time")
+            price_time.set_ylabel("$ / BTC")
+            price_time.grid(True)
 
-        balance_stats = {"Currency": [float(t[1]) for t in self.balance_money_btc],
-                        "BTC (currency equivalent)": [float(t[0] - t[1]) for t in self.balance_money_btc]}
-        
+            balance_stats = {"Currency": [float(t[1]) for t in self.balance_money_btc],
+                            "BTC (currency equivalent)": [float(t[0] - t[1]) for t in self.balance_money_btc]}
+            
 
-        balance_time.stackplot(range(start_moment, end_moment + 1),
-                                balance_stats.values(),
-                                labels = balance_stats.keys(),
-                                alpha = 0.8)
+            balance_time.stackplot(range(start_moment, end_moment + 1),
+                                    balance_stats.values(),
+                                    labels = balance_stats.keys(),
+                                    alpha = 0.8)
 
-        balance_time.legend(loc = "upper left")
-        balance_time.set_title("Balance evolution")
-        balance_time.set_xlabel("time")
-        balance_time.set_ylabel("$")
-        balance_time.grid(True)
+            balance_time.legend(loc = "upper left")
+            balance_time.set_title("Balance evolution")
+            balance_time.set_xlabel("time")
+            balance_time.set_ylabel("$")
+            balance_time.grid(True)
 
-        plt.title(f"Bitcoin trading environment (episode length {self.episode_len})")
-        plt.show()
+            balance_stats_control = {"Currency": [float(t[1]) for t in self.balance_money_btc_control],
+                                    "BTC (currency equivalent)": [float(t[0] - t[1]) for t in self.balance_money_btc_control]}
+            
+
+            balance_time_control.stackplot(range(start_moment, end_moment + 1),
+                                    balance_stats_control.values(),
+                                    labels = balance_stats_control.keys(),
+                                    alpha = 0.8)
+
+            balance_time_control.legend(loc = "upper left")
+            balance_time_control.set_title("Balance evolution (control)")
+            balance_time_control.set_xlabel("time")
+            balance_time_control.set_ylabel("$")
+            balance_time_control.grid(True)
+
+            plt.show()
+
+        else:
+
+            fig, (price_time, balance_time) = plt.subplots(2)
+            fig.subplots_adjust(hspace=0.6)
+
+            price_time.plot(range(start_moment, end_moment + 1),
+                            self.price_history[start_moment: end_moment + 1],
+                            color = 'gold')
+
+            price_time.set_title("Price evolution")
+            price_time.set_xlabel("time")
+            price_time.set_ylabel("$ / BTC")
+            price_time.grid(True)
+
+            balance_stats = {"Currency": [float(t[1]) for t in self.balance_money_btc],
+                            "BTC (currency equivalent)": [float(t[0] - t[1]) for t in self.balance_money_btc]}
+            
+
+            balance_time.stackplot(range(start_moment, end_moment + 1),
+                                    balance_stats.values(),
+                                    labels = balance_stats.keys(),
+                                    alpha = 0.8)
+
+            balance_time.legend(loc = "upper left")
+            balance_time.set_title("Balance evolution")
+            balance_time.set_xlabel("time")
+            balance_time.set_ylabel("$")
+            balance_time.grid(True)
+
+            plt.show()
 
     def close(self):
         return None

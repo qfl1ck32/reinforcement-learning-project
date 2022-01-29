@@ -92,10 +92,13 @@ class DDPG_agent():
                     state_size = 5,
                     start_money = 1000,
                     start_btc = 0.1,
-                    stats4render = True
+                    stats4render = True,
+                    control = True
                     ):
 
-        self.env = BitcoinTradingEnv(data, start_money, start_btc, state_size, episode_len, stats4render)
+        self.env = BitcoinTradingEnv(data, start_money, start_btc, 
+                                        state_size, episode_len, stats4render,
+                                        control)
         self.env.seed(seed)
 
         self.episode_len = episode_len
@@ -299,7 +302,8 @@ class DDPG_agent():
                             "state_size": [50],
                             "start_money": [1000],
                             "start_btc": [0.1],
-                            "stats4render": [True]
+                            "stats4render": [True],
+                            "control": [True]
                             }
         hyperparam_names = [name for name in hyperparam_val.keys()]
 
@@ -394,8 +398,8 @@ def run(data):
     # TODO remove after debug
     tf.debugging.enable_check_numerics()
 
-    print(data.shape)
-    quit()
+    #print(data.shape)
+    #quit()
 
     data_ = []
     for i in range(data.shape[0]):
@@ -408,7 +412,7 @@ def run(data):
 
     agent = DDPG_agent(data, 
                         seed = 0,
-                        episode_len = 10000,
+                        episode_len = 200,
                         noise_std = 0.1,
                         replay_buffer_len = 1024 * 4,
                         discount = 0.9997,
@@ -422,6 +426,7 @@ def run(data):
                         state_size = 5,
                         start_money = 1000,
                         start_btc = 0.1,
-                        stats4render = True
+                        stats4render = True,
+                        control = True
                     )
-    agent.train(episodes = 7, render = True)
+    agent.train(episodes = 1, render = True)
