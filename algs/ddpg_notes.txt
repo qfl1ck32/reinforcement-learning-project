@@ -40,3 +40,9 @@ Varianta 3: commit b73db7c,
                     sa maresc std-ul erorii cand aleg urmatoarea actiune
                     (pe timpul train-ului)
                 
+Varianta 4: commit FIXME
+            tot o mizerie
+            am incercat mai multi parametri prin gridsearch
+            ce nu am incercat inca
+            este sa compar cu actiuni random
+            ca baseline
