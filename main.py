@@ -12,7 +12,7 @@ def get_data():
         logger.info("Loaded.")
     else:
         logger.info("Generating and saving the data...")
-        data = generate_and_save_data(limit=1e5)
+        data = generate_and_save_data()
         logger.info("Saved.")
 
     return data

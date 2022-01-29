@@ -394,6 +394,9 @@ def run(data):
     # TODO remove after debug
     tf.debugging.enable_check_numerics()
 
+    print(data.shape)
+    quit()
+
     data_ = []
     for i in range(data.shape[0]):
         data_.append((data[i][2] + data[i][3]) / 2)
@@ -405,7 +408,7 @@ def run(data):
 
     agent = DDPG_agent(data, 
                         seed = 0,
-                        episode_len = 200,
+                        episode_len = 10000,
                         noise_std = 0.1,
                         replay_buffer_len = 1024 * 4,
                         discount = 0.9997,
@@ -417,8 +420,8 @@ def run(data):
                         polyak = 0.8,
                         steps_until_sync = 20,
                         state_size = 5,
-                        start_money = 10000,
+                        start_money = 1000,
                         start_btc = 0.1,
                         stats4render = True
                     )
-    agent.train(episodes = 1, render = True)
+    agent.train(episodes = 7, render = True)

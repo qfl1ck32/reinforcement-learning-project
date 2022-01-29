@@ -15,11 +15,6 @@ class BitcoinTradingEnv(Env):
     MIN_BALANCE = 100
     """Threshold for stopping an episode"""
 
-    # render strings
-    TOTAL_BALANCE_STR = "Total balance"
-    CURRENCY_STR = "Currency"
-    BTC_STR = "BTC (in currency)"
-
     def __init__(self, 
                     price_history,
                     start_money = 1000.0,
@@ -170,7 +165,7 @@ class BitcoinTradingEnv(Env):
         end_moment = start_moment + self.episode_len
 
         fig, (price_time, balance_time) = plt.subplots(2)
-        fig.subplots_adjust(hspace=0.5)
+        fig.subplots_adjust(hspace=0.6)
 
         price_time.plot(range(start_moment, end_moment + 1),
                         self.price_history[start_moment: end_moment + 1],
