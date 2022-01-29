@@ -170,7 +170,7 @@ class BitcoinTradingEnv(Env):
         if self.control:
             """re-calculate everything for the control statistics"""
 
-            random_action = random.randint(-1, 1)
+            random_action = random.random() * 2 - 1
 
             if random_action > 0:
             

@@ -75,6 +75,8 @@ class Policy(Model):
     
 class DDPG_agent():
 
+    TRAIN_DEBUG_STATS_PERIOD = 500
+
     def __init__(self,
                     data,
                     seed = None,
@@ -160,7 +162,7 @@ class DDPG_agent():
         while True:
 
             if DEBUG:
-                if step_idx % 100 == 0:
+                if step_idx % DDPG_agent.TRAIN_DEBUG_STATS_PERIOD == 0:
                     print(f"[Step {step_idx}] total balance {self.env.total_balance}, " +\
                             f"money {self.env.money}, btc {self.env.btc}, " + \
                             f"money/btc {self.env.price_history[self.env.current_moment]}")
@@ -411,22 +413,22 @@ def run(data):
 
     agent = DDPG_agent(data, 
                         seed = 0,
-                        episode_len = 200,
+                        episode_len = 20000,
                         noise_std = 0.1,
-                        replay_buffer_len = 1024 * 4,
+                        replay_buffer_len = 1024 * 16,
                         discount = 0.9997,
-                        batch_size = 256,
+                        batch_size = 1024,
                         q_lr = 0.001,
                         policy_lr = 0.0001,
                         q_momentum = 0.9,
                         policy_momentum = 0.9,
-                        polyak = 0.8,
-                        steps_until_sync = 20,
-                        state_size = 13,
+                        polyak = 0.9,
+                        steps_until_sync = 50,
+                        state_size = 10,
                         start_money = 1000,
                         start_btc = 0.1,
                         stats4render = True,
                         control = True
                     )
-    agent.train(episodes = 2, save_model = False, render = True)
+    agent.train(episodes = 50, save_model = False, render = True)
     agent.test(data)
