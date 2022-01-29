@@ -92,10 +92,10 @@ class DDPG_agent():
                     state_size = 5,
                     start_money = 1000,
                     start_btc = 0.1,
-                    relative_reward = True
+                    stats4render = True
                     ):
 
-        self.env = BitcoinTradingEnv(data, start_money, start_btc, state_size, episode_len, relative_reward)
+        self.env = BitcoinTradingEnv(data, start_money, start_btc, state_size, episode_len, stats4render)
         self.env.seed(seed)
 
         self.episode_len = episode_len
@@ -136,6 +136,9 @@ class DDPG_agent():
         self.policy_optimizer = SGD(self.policy_lr, self.policy_momentum)
 
     def get_action(self, state):
+        """between [-1, 1]\n
+            eg. +0.7 means spend 70% of money that I have right now to buy btc\n
+                -0.5 means sell 50% of the btc I currently have"""
 
         if self.env.money < 0.1 or self.env.btc < 0.001:
             self.noise_std = 0.5
@@ -232,12 +235,15 @@ class DDPG_agent():
             state = next_state
             step_idx += 1
 
-    def train(self, episodes = 10, save_model = True):
+    def train(self, episodes = 10, save_model = True, render = True):
 
         for ep_idx in range(episodes):
 
             balance = self.run_episode()
             logger.info(f"Balance after episode {ep_idx}: {balance}")
+
+            if render:
+                self.env.render()
 
             if save_model is True:
 
@@ -279,21 +285,21 @@ class DDPG_agent():
         f = open("gridsearch.txt", "w+")
 
         hyperparam_val =    {
-                            "episode_len": [5000],
+                            "episode_len": [10000],
                             "noise_std": [0.05],
-                            "replay_buffer_len": [1024 * 6],
-                            "discount": [0.9997],
-                            "batch_size": [256, 1024],
+                            "replay_buffer_len": [1024 * 10],
+                            "discount": [0.9996],
+                            "batch_size": [1024],
                             "q_lr": [0.001],
                             "policy_lr": [0.0001],
                             "q_momentum": [0.9],
                             "policy_momentum": [0.9],
                             "polyak": [0.8],
-                            "steps_until_sync": [20],
-                            "state_size": [3, 5, 10],
-                            "start_money": [10000],
+                            "steps_until_sync": [50],
+                            "state_size": [50],
+                            "start_money": [1000],
                             "start_btc": [0.1],
-                            "relative_reward": [True, False]
+                            "stats4render": [True]
                             }
         hyperparam_names = [name for name in hyperparam_val.keys()]
 
@@ -313,8 +319,10 @@ class DDPG_agent():
                         yield to_yield
 
         for hyperparams in _get_hyperparam_seq(hyperparam_names):
-
+            
             try:
+
+                logger.info(f"Started gridsearch for parameters {hyperparams}\n")
             
                 data_ = deepcopy(data)
 
@@ -323,14 +331,15 @@ class DDPG_agent():
 
                 final_balance = agent.test(data_)
 
-                f.write(f"parameters {hyperparams}, final_balance: {final_balance}")
+                f.write(f"parameters {hyperparams}, final_balance: {final_balance}\n")
                 f.flush()
 
-                agent.q_target.save_weights(f"q_model_balance_{int(final_balance)}")
-                agent.policy_target.save_weights(f"policy_model_balance_{int(final_balance)}")
+                agent.q_target.save_weights(f"q_model_balance_{int(final_balance)}\n")
+                agent.policy_target.save_weights(f"policy_model_balance_{int(final_balance)}\n")
 
             except Exception as err:
-                f.write(f"parameters {hyperparams}, ERROR: {err, err.args}")
+                f.write(f"parameters {hyperparams}, ERROR: {err, err.args}\n")
+                f.flush()
 
         f.flush()
         f.close()
@@ -392,10 +401,11 @@ def run(data):
     data = np.array(data_)
 
     #DDPG_agent.gridsearch(data)
+    #quit()
 
     agent = DDPG_agent(data, 
                         seed = 0,
-                        episode_len = 5000,
+                        episode_len = 200,
                         noise_std = 0.1,
                         replay_buffer_len = 1024 * 4,
                         discount = 0.9997,
@@ -409,6 +419,6 @@ def run(data):
                         state_size = 5,
                         start_money = 10000,
                         start_btc = 0.1,
-                        relative_reward = False
+                        stats4render = True
                     )
-    agent.train()
+    agent.train(episodes = 1, render = True)
