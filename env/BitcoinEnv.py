@@ -104,7 +104,9 @@ class BitcoinTradingEnv(Env):
         self.money = self.start_money
         self.btc = self.start_btc
 
-        self.current_moment = random.choice(range(self.memory - 1, len(self.price_history) - self.episode_len - self.memory))
+        assert(self.memory < len(self.price_history) - self.episode_len)
+        self.current_moment = random.choice(range(self.memory, len(self.price_history) - self.episode_len))
+        
         self.last_observation = self.price_history_deriv[self.current_moment - self.memory: self.current_moment]
 
         self.total_balance = self.start_money + self.start_btc * self.price_history[self.current_moment]
@@ -117,10 +119,10 @@ class BitcoinTradingEnv(Env):
             self.total_balance_control = self.start_money + self.start_btc * self.price_history[self.current_moment]
 
         if self.stats4render:
-            self.balance_money_btc.append((self.total_balance, self.money, self.btc))
+            self.balance_money_btc = [(self.total_balance, self.money, self.btc)]
 
             if self.control:
-                self.balance_money_btc_control.append((self.total_balance_control, self.money_control, self.btc_control))
+                self.balance_money_btc_control = [(self.total_balance_control, self.money_control, self.btc_control)]
 
         return self.last_observation
 
@@ -209,14 +211,14 @@ class BitcoinTradingEnv(Env):
             return 
 
         start_moment = self.current_moment + self.steps_todo - self.episode_len
-        end_moment = start_moment + self.episode_len
+        end_moment = self.current_moment
 
         if self.control:
             
             fig, (price_time, balance_time, balance_time_control) = plt.subplots(3)
             fig.subplots_adjust(hspace=0.6)
 
-            price_time.plot(range(start_moment, end_moment + 1),
+            price_time.plot(range(end_moment - start_moment + 1),
                             self.price_history[start_moment: end_moment + 1],
                             color = 'gold')
 
@@ -229,7 +231,7 @@ class BitcoinTradingEnv(Env):
                             "BTC (currency equivalent)": [float(t[0] - t[1]) for t in self.balance_money_btc]}
             
 
-            balance_time.stackplot(range(start_moment, end_moment + 1),
+            balance_time.stackplot(range(end_moment - start_moment + 1),
                                     balance_stats.values(),
                                     labels = balance_stats.keys(),
                                     alpha = 0.8)
@@ -244,7 +246,7 @@ class BitcoinTradingEnv(Env):
                                     "BTC (currency equivalent)": [float(t[0] - t[1]) for t in self.balance_money_btc_control]}
             
 
-            balance_time_control.stackplot(range(start_moment, end_moment + 1),
+            balance_time_control.stackplot(range(end_moment - start_moment + 1),
                                     balance_stats_control.values(),
                                     labels = balance_stats_control.keys(),
                                     alpha = 0.8)
@@ -262,7 +264,7 @@ class BitcoinTradingEnv(Env):
             fig, (price_time, balance_time) = plt.subplots(2)
             fig.subplots_adjust(hspace=0.6)
 
-            price_time.plot(range(start_moment, end_moment + 1),
+            price_time.plot(range(end_moment - start_moment + 1),
                             self.price_history[start_moment: end_moment + 1],
                             color = 'gold')
 
@@ -275,7 +277,7 @@ class BitcoinTradingEnv(Env):
                             "BTC (currency equivalent)": [float(t[0] - t[1]) for t in self.balance_money_btc]}
             
 
-            balance_time.stackplot(range(start_moment, end_moment + 1),
+            balance_time.stackplot(range(end_moment - start_moment + 1),
                                     balance_stats.values(),
                                     labels = balance_stats.keys(),
                                     alpha = 0.8)

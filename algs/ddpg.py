@@ -218,8 +218,6 @@ class DDPG_agent():
                 q_target_w = self.q_target.get_weights()
                 q_train_w = self.q.get_weights()
 
-                assert(len(q_target_w) == len(q_train_w))
-
                 for i in range(len(q_target_w)):
                     q_target_w[i] = self.polyak * q_target_w[i] + (1 - self.polyak) * q_train_w[i]
 
@@ -227,8 +225,6 @@ class DDPG_agent():
 
                 policy_target_w = self.policy_target.get_weights()
                 policy_train_w = self.policy.get_weights()
-
-                assert(len(policy_target_w) == len(policy_train_w))
 
                 for i in range(len(policy_target_w)):
                     policy_target_w[i] = self.polyak * policy_target_w[i] + (1 - self.polyak) * policy_train_w[i]
@@ -255,26 +251,29 @@ class DDPG_agent():
                 self.q_target.save_weights(f"q_model_ep{ep_idx}_{tag}")
                 self.policy_target.save_weights(f"policy_model_ep{ep_idx}_{tag}")
 
-    def test(self, data):
+    def test(self, data, stats_interval = 1000):
         
         backup_ep_len = self.env.episode_len
 
-        self.env.episode_len = len(data) - 10 # -10 as a precaution for improper indexes
+        self.env.episode_len = len(data) - self.env.memory - 1
         state = self.env.reset()
 
         step_idx = 0
         while True:
 
-            if DEBUG:
-                if step_idx % 100 == 0:
-                    print(f"[Step {step_idx}] total balance {self.env.total_balance}, " +\
-                            f"money {self.env.money}, btc {self.env.btc}, " + \
-                            f"money/btc {self.env.price_history[self.env.current_moment]}")
+            if step_idx > 0 and step_idx % stats_interval == 0:
+                
+                print(f"[Step {step_idx}] total balance {self.env.total_balance}, " +\
+                        f"money {self.env.money}, btc {self.env.btc}, " + \
+                        f"money/btc {self.env.price_history[self.env.current_moment]}")
+
+                if self.env.stats4render:
+                    self.env.render()
 
             action = self.get_action(state)
             next_state, _, done, _ = self.env.step(action)
 
-            if done or step_idx >= self.episode_len:
+            if done or step_idx >= self.env.episode_len:
 
                 self.env.episode_len = backup_ep_len
                 return self.env.total_balance
@@ -423,10 +422,11 @@ def run(data):
                         policy_momentum = 0.9,
                         polyak = 0.8,
                         steps_until_sync = 20,
-                        state_size = 5,
+                        state_size = 13,
                         start_money = 1000,
                         start_btc = 0.1,
                         stats4render = True,
                         control = True
                     )
-    agent.train(episodes = 1, render = True)
+    agent.train(episodes = 2, save_model = False, render = True)
+    agent.test(data)
