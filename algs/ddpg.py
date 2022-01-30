@@ -532,10 +532,10 @@ class DDPG_agent_lstm():
                     q_vars = self.q.trainable_variables
                     q_tape.watch(q_vars)
 
-                    q_pred = self.q(tf.concat([s_batch, a_batch], axis = 2))
+                    q_pred = self.q(tf.concat([s_batch, a_batch], axis = 1))
 
                     a_next_batch = self.policy_target(s_next_batch_lstm)
-                    q_gt = r_batch + self.discount * self.q_target(tf.concat([s_next_batch, a_next_batch], axis = 2))
+                    q_gt = r_batch + self.discount * self.q_target(tf.concat([s_next_batch, a_next_batch], axis = 1))
 
                     q_loss = (q_pred - q_gt) ** 2
 
@@ -551,7 +551,7 @@ class DDPG_agent_lstm():
 
                     a_pred_batch = self.policy(s_batch_lstm)
                     
-                    policy_loss = -self.q(tf.concat([s_batch, a_pred_batch], axis = 2))
+                    policy_loss = -self.q(tf.concat([s_batch, a_pred_batch], axis = 1))
 
                 policy_gradients = policy_tape.gradient(policy_loss, policy_vars)
                 self.policy_optimizer.apply_gradients(zip(policy_gradients, policy_vars))
