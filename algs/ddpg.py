@@ -35,6 +35,7 @@ class Q(Model):
         self.input_layer = InputLayer(input_shape = input_shape)
 
         self.hidden_layers = []
+        self.hidden_layers.append(Dense(128, activation = "relu"))
         self.hidden_layers.append(Dense(64, activation = "relu"))
         self.hidden_layers.append(Dense(32, activation = "relu"))
         self.hidden_layers.append(Dense(16, activation = "relu"))
@@ -80,9 +81,10 @@ class Policy_LSTM(Model):
     def __init__(self):
         super(Policy_LSTM, self).__init__()
 
-        self.input_layer = LSTM(64)
+        self.input_layer = LSTM(128)
 
         self.hidden_layers = []
+        self.hidden_layers.append(Dense(64, activation = "relu"))
         self.hidden_layers.append(Dense(32, activation = "relu"))
         self.hidden_layers.append(Dense(16, activation = "relu"))
 
@@ -395,7 +397,7 @@ class DDPG_agent_lstm():
                     policy_lr = 0.0001,
                     q_momentum = 0.9,
                     policy_momentum = 0.9,
-                    lstm_timesteps = 5,
+                    lstm_timesteps = 3,
                     polyak = 0.9,
                     steps_until_sync = 10,
                     state_size = 5,
@@ -527,6 +529,10 @@ class DDPG_agent_lstm():
 
                 # train Q network
 
+                '''before_w = self.q.get_weights()
+                before_w2 = self.q_target.get_weights()
+                before_w3 = self.policy_target.get_weights()'''
+
                 with tf.GradientTape() as q_tape:
 
                     q_vars = self.q.trainable_variables
@@ -542,7 +548,26 @@ class DDPG_agent_lstm():
                 q_gradients = q_tape.gradient(q_loss, q_vars)
                 self.q_optimizer.apply_gradients(zip(q_gradients, q_vars)) 
 
+                '''after_w = self.q.get_weights()
+                after_w2 = self.q_target.get_weights()
+                after_w3 = self.policy_target.get_weights()
+
+                for i in range(len(after_w)):
+                    if np.array_equal(before_w[i], after_w[i]) == False:
+                        print(f"a {i} OK")
+
+                for i in range(len(after_w2)):
+                    if np.array_equal(before_w2[i], after_w2[i]) == False:
+                        print(f"b {i} FAIL")
+
+                for i in range(len(after_w3)):
+                    if np.array_equal(before_w3[i], after_w3[i]) == False:
+                        print(f"c {i} FAIL")'''
+
                 # train Policy network
+
+                '''before_w = self.policy.get_weights()
+                before_w2 = self.q.get_weights()'''
 
                 with tf.GradientTape() as policy_tape:
 
@@ -555,6 +580,17 @@ class DDPG_agent_lstm():
 
                 policy_gradients = policy_tape.gradient(policy_loss, policy_vars)
                 self.policy_optimizer.apply_gradients(zip(policy_gradients, policy_vars))
+
+                '''after_w = self.policy.get_weights()
+                after_w2 = self.q.get_weights()
+
+                for i in range(len(after_w)):
+                    if np.array_equal(before_w[i], after_w[i]) == False:
+                        print(f"d {i} OK")
+
+                for i in range(len(after_w2)):
+                    if np.array_equal(before_w2[i], after_w2[i]) == False:
+                        print(f"e {i} FAIL")'''
 
                 # polyak averaging
 
@@ -588,7 +624,6 @@ class DDPG_agent_lstm():
             balance = self.run_episode()
             logger.info(f"Balance after episode {ep_idx}: {balance}")
 
-            # FIXME
             if render:
                 self.env.render()
 
@@ -599,13 +634,14 @@ class DDPG_agent_lstm():
                 self.q_target.save_weights(f"q_model_ep{ep_idx}_{tag}")
                 self.policy_target.save_weights(f"policy_model_ep{ep_idx}_{tag}")
 
-    # FIXME
     def test(self, data, stats_interval = 1000):
         
         backup_ep_len = self.env.episode_len
 
         self.env.episode_len = len(data) - self.env.memory - 1
         state = self.env.reset()
+
+        recent_states = [np.array([0 for _ in range(self.env.memory)]) for _ in range(self.lstm_timesteps - 1)]
 
         step_idx = 0
         while True:
@@ -619,13 +655,16 @@ class DDPG_agent_lstm():
                 if self.env.stats4render:
                     self.env.render()
 
-            action = self.get_action(state)
+            action = self.get_action(tf.stack(recent_states + state, axis = 0))
             next_state, _, done, _ = self.env.step(action)
 
             if done or step_idx >= self.env.episode_len:
 
                 self.env.episode_len = backup_ep_len
                 return self.env.total_balance
+
+            recent_states.pop(0)
+            recent_states.append(state)
             
             state = next_state
             step_idx += 1
@@ -645,6 +684,7 @@ class DDPG_agent_lstm():
                             "policy_lr": [0.0001],
                             "q_momentum": [0.9],
                             "policy_momentum": [0.9],
+                            "lstm_timesteps": [5],
                             "polyak": [0.8],
                             "steps_until_sync": [50],
                             "state_size": [50],
@@ -678,7 +718,7 @@ class DDPG_agent_lstm():
             
                 data_ = deepcopy(data)
 
-                agent = DDPG_agent(data_, **hyperparams)
+                agent = DDPG_agent_lstm(data_, **hyperparams)
                 agent.train(save_model = False)
 
                 final_balance = agent.test(data_)
@@ -695,7 +735,6 @@ class DDPG_agent_lstm():
 
         f.flush()
         f.close()
-
 
 def run(data):
     """entry point"""
@@ -761,7 +800,7 @@ def run(data):
 
     agent = DDPG_agent_lstm(data, 
                             seed = 0,
-                            episode_len = 1000,
+                            episode_len = 5000,
                             noise_std = 0.1,
                             replay_buffer_len = 1024 * 64,
                             discount = 0.9,
@@ -770,10 +809,10 @@ def run(data):
                             policy_lr = 1e-5,
                             q_momentum = 0.9,
                             policy_momentum = 0.9,
-                            lstm_timesteps = 3,
+                            lstm_timesteps = 5,
                             polyak = 0.9,
                             steps_until_sync = 20,
-                            state_size = 4,
+                            state_size = 3,
                             start_money = 2000,
                             start_btc = 0.1,
                             stats4render = True,
