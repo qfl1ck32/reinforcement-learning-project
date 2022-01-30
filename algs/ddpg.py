@@ -103,7 +103,7 @@ class Policy_LSTM(Model):
     def __init__(self):
         super(Policy, self).__init__()
 
-        self.input_layer = InputLayer(64)
+        self.input_layer = LSTM(64)
 
         self.hidden_layers = []
         self.hidden_layers.append(Dense(32, activation = "relu"))
@@ -398,6 +398,11 @@ class DDPG_agent():
         f.close()
 
 class DDPG_agent_lstm():
+    """DDPG agent using LSTM layers
+        for Q and Policy networks\n
+        Changes are done in the episode loops
+        so that the current state also contains
+        a fixed number of previous states"""
 
     TRAIN_DEBUG_STATS_PERIOD = 500
 
@@ -482,6 +487,11 @@ class DDPG_agent_lstm():
 
         state = self.env.reset()
 
+        recent_states = [np.array([0 for _ in range(self.env.memory)]) for _ in range(self.lstm_timesteps - 1)]
+        """FIFO queue for recent states\n
+            to be stacked with the current state
+            and fed to the RNNs"""
+
         self.q.set_weights(self.q_target.get_weights())
         self.policy.set_weights(self.policy_target.get_weights())
 
@@ -494,7 +504,7 @@ class DDPG_agent_lstm():
                             f"money {self.env.money}, btc {self.env.btc}, " + \
                             f"money/btc {self.env.price_history[self.env.current_moment]}")
 
-            action = self.get_action(state)
+            action = self.get_action(tf.stack(recent_states + state, axis = 0))
             next_state, reward, done, _ = self.env.step(action)
 
             if done or step_idx >= self.episode_len:
@@ -504,12 +514,24 @@ class DDPG_agent_lstm():
             
             if step_idx % self.steps_until_sync == 0 and len(self.replay_buffer) >= self.batch_size:
 
-                samples = random.sample(self.replay_buffer[-self.replay_buffer_len:], self.batch_size)
+                s_batch = []
+                a_batch = []
+                r_batch = []
+                s_next_batch = []
 
-                s_batch = tf.stack([sample[0] for sample in samples], axis=0)
-                a_batch = tf.stack([sample[1] for sample in samples], axis=0)
-                r_batch = tf.stack([sample[2] for sample in samples], axis=0)
-                s_next_batch = tf.stack([sample[3] for sample in samples], axis=0)
+                for i in range(self.batch_size):
+
+                    idx = random.randint(self.lstm_timesteps - 1, len(self.replay_buffer) - 1)
+                    
+                    s_batch.append(np.array([self.replay_buffer[i][0] for i in range(idx - self.lstm_timesteps + 1, idx + 1)]))
+                    a_batch.append(np.array([self.replay_buffer[i][1] for i in range(idx - self.lstm_timesteps + 1, idx + 1)]))
+                    r_batch.append(np.array([self.replay_buffer[i][2] for i in range(idx - self.lstm_timesteps + 1, idx + 1)]))
+                    s_next_batch.append(np.array([self.replay_buffer[i][3] for i in range(idx - self.lstm_timesteps + 1, idx + 1)]))
+
+                s_batch = tf.stack(s_batch, axis = 0)
+                a_batch = tf.stack(a_batch, axis = 0)
+                r_batch = tf.stack(r_batch, axis = 0)
+                s_next_batch = tf.stack(s_next_batch, axis = 0)
 
                 # train Q network
 
@@ -520,6 +542,7 @@ class DDPG_agent_lstm():
 
                     q_pred = self.q(tf.concat([s_batch, a_batch], axis=1))
 
+                    # FIXME a_next_batch timesteps dimension
                     a_next_batch = self.policy_target(s_next_batch)
                     q_gt = r_batch + self.discount * self.q_target(tf.concat([s_next_batch, a_next_batch], axis=1))
 
@@ -535,6 +558,7 @@ class DDPG_agent_lstm():
                     policy_vars = self.policy.trainable_variables
                     policy_tape.watch(policy_vars)
 
+                    # FIXME a_pred_batch timesteps dimension
                     a_pred_batch = self.policy(s_batch)
                     
                     policy_loss = -self.q(tf.concat([s_batch, a_pred_batch], axis=1))
@@ -560,6 +584,10 @@ class DDPG_agent_lstm():
 
                 self.policy_target.set_weights(policy_target_w)    
 
+            # also actualize recent_states
+            recent_states.pop(0)
+            recent_states.append(state)
+
             state = next_state
             step_idx += 1
 
@@ -570,6 +598,7 @@ class DDPG_agent_lstm():
             balance = self.run_episode()
             logger.info(f"Balance after episode {ep_idx}: {balance}")
 
+            # FIXME
             if render:
                 self.env.render()
 
@@ -741,22 +770,22 @@ def run(data):
 
     agent = DDPG_agent(data, 
                         seed = 0,
-                        episode_len = 1000,
+                        episode_len = 100000,
                         noise_std = 0.1,
                         replay_buffer_len = 1024 * 64,
-                        discount = 0.95,
-                        batch_size = 256,
+                        discount = 0.9,
+                        batch_size = 1024,
                         q_lr = 1e-4,
                         policy_lr = 1e-5,
                         q_momentum = 0.9,
                         policy_momentum = 0.9,
                         polyak = 0.9,
                         steps_until_sync = 50,
-                        state_size = 5,
-                        start_money = 1000,
+                        state_size = 4,
+                        start_money = 2000,
                         start_btc = 0.1,
                         stats4render = True,
                         control = True
                     )
-    agent.train(episodes = 1000, save_model = False, render = True)
+    agent.train(episodes = 10, save_model = False, render = True)
     agent.test(data)
