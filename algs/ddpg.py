@@ -817,7 +817,7 @@ def run(data):
                             stats4render = True,
                             control = True
                         )
-    agent.train(episodes = 10, save_model = False, render = True)
+    agent.train(episodes = 10, save_model = True, render = True)
     agent.test(data)
 
     quit()
