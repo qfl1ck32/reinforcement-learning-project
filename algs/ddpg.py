@@ -798,26 +798,26 @@ def run(data):
 
     agent = DDPG_agent_lstm(data, 
                             seed = 0,
-                            episode_len = 5000,
-                            noise_std = 0.1,
+                            episode_len = 10000,
+                            noise_std = 0.05,
                             replay_buffer_len = 1024 * 64,
                             discount = 0.9,
-                            batch_size = 128,
+                            batch_size = 1024,
                             q_lr = 1e-4,
                             policy_lr = 1e-5,
                             q_momentum = 0.9,
                             policy_momentum = 0.9,
                             lstm_timesteps = 5,
                             polyak = 0.9,
-                            steps_until_sync = 20,
-                            state_size = 3,
+                            steps_until_sync = 50,
+                            state_size = 4,
                             start_money = 2000,
                             start_btc = 0.1,
                             use_snd_deriv = True,
                             stats4render = True,
                             control = True
                         )
-    agent.train(episodes = 10, save_model = True, render = True)
+    agent.train(episodes = 100, save_model = True, render = True)
     agent.test(data)
 
     quit()
