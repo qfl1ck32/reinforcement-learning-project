@@ -72,7 +72,7 @@ class Policy(Model):
             tmp = l(tmp)
 
         return self.output_layer(tmp)
-    
+
 class DDPG_agent():
 
     def __init__(self,
