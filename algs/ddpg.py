@@ -22,6 +22,7 @@ from tensorflow.keras.models import *
 from tensorflow.keras.layers import *
 from tensorflow.keras.losses import *
 from tensorflow.keras.optimizers import *
+from tensorflow.keras.activations import *
 
 from env.BitcoinEnv import BitcoinTradingEnv
 
@@ -37,7 +38,6 @@ class Q(Model):
         self.hidden_layers = []
         self.hidden_layers.append(Dense(128, activation = "relu"))
         self.hidden_layers.append(Dense(64, activation = "relu"))
-        self.hidden_layers.append(Dense(32, activation = "relu"))
         self.hidden_layers.append(Dense(16, activation = "relu"))
 
         self.output_layer = Dense(1, activation = "linear")
@@ -60,9 +60,9 @@ class Policy(Model):
         self.input_layer = InputLayer(input_shape = input_shape)
 
         self.hidden_layers = []
-        self.hidden_layers.append(Dense(64, activation = "relu"))
-        self.hidden_layers.append(Dense(32, activation = "relu"))
-        self.hidden_layers.append(Dense(16, activation = "relu"))
+        self.hidden_layers.append(Dense(64, activation = "elu"))
+        self.hidden_layers.append(Dense(32, activation = "elu"))
+        self.hidden_layers.append(Dense(16, activation = "elu"))
 
         self.output_layer = Dense(1, activation = "tanh")
 
@@ -85,7 +85,6 @@ class Policy_LSTM(Model):
 
         self.hidden_layers = []
         self.hidden_layers.append(Dense(64, activation = "relu"))
-        self.hidden_layers.append(Dense(32, activation = "relu"))
         self.hidden_layers.append(Dense(16, activation = "relu"))
 
         self.output_layer = Dense(1, activation = "tanh")
@@ -390,7 +389,7 @@ class DDPG_agent_lstm():
     def __init__(self,
                     data,
                     seed = None,
-                    episode_len = 10000,
+                    episode_len = 50000,
                     noise_std = 0.1,
                     replay_buffer_len = 1024 * 16,
                     discount = 0.999,
@@ -459,8 +458,8 @@ class DDPG_agent_lstm():
             eg. +0.7 means spend 70% of money that I have right now to buy btc\n
                 -0.5 means sell 50% of the btc I currently have"""
 
-        if self.env.money < 0.1 or self.env.btc < 0.001:
-            self.noise_std = 0.5
+        #if self.env.money < 0.1 or self.env.btc < 0.001:
+         #   self.noise_std = 0.5
         
         policy_action = self.policy(np.array([state]))[0]
         return min(max(policy_action + normal(0, self.noise_std), np.array([-1])), np.array([1]))
@@ -495,6 +494,10 @@ class DDPG_agent_lstm():
             self.replay_buffer.append((state, action, reward, next_state))
             
             if step_idx % self.steps_until_sync == 0 and len(self.replay_buffer) >= self.batch_size:
+                
+                # TODO remove
+                self.noise_std *= 0.99
+                self.noise_std = max(self.noise_std, 0.08)
 
                 s_batch = []
                 a_batch = []
@@ -799,21 +802,21 @@ def run(data):
     agent = DDPG_agent_lstm(data, 
                             seed = 0,
                             episode_len = 10000,
-                            noise_std = 0.05,
+                            noise_std = 0.4,
                             replay_buffer_len = 1024 * 64,
-                            discount = 0.9,
-                            batch_size = 1024,
+                            discount = 0.8,
+                            batch_size = 4,
                             q_lr = 1e-4,
                             policy_lr = 1e-5,
                             q_momentum = 0.9,
                             policy_momentum = 0.9,
                             lstm_timesteps = 5,
                             polyak = 0.9,
-                            steps_until_sync = 50,
+                            steps_until_sync = 20,
                             state_size = 4,
                             start_money = 2000,
                             start_btc = 0.1,
-                            use_snd_deriv = True,
+                            use_snd_deriv = False,
                             stats4render = True,
                             control = True
                         )

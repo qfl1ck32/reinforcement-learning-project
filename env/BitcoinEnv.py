@@ -186,6 +186,18 @@ class BitcoinTradingEnv(Env):
         new_total_balance = self.btc * self.price_history[self.current_moment] + self.money
         reward = np.log(new_total_balance / self.total_balance)
 
+        # TODO make default or eliminate?
+
+        future_moment = self.current_moment + 2
+        a = 0.9
+        while future_moment < self.current_moment + self.steps_todo and a > 0.1:
+            
+            new_total_balance = self.btc * self.price_history[future_moment] + self.money
+            reward += a * np.log(new_total_balance / self.total_balance)
+
+            a *= 0.9
+            future_moment = int(future_moment * 1.2)
+
         self.total_balance = new_total_balance
 
         if self.control:
