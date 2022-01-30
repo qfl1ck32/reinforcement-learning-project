@@ -21,6 +21,7 @@ class BitcoinTradingEnv(Env):
                     start_btc = 0.0,
                     memory = 5,
                     episode_len = 5000,
+                    use_snd_deriv = True,
                     stats4render = True,
                     control = True
                 ):
@@ -68,13 +69,13 @@ class BitcoinTradingEnv(Env):
             self.total_balance_control = 0
 
         self.memory = memory
-        self.observation_space = Box(low=0.0, high=100000.0, dtype=np.float32, shape=(1, self.memory))
+        self.observation_space = Box(low = 0.0, high = 100000.0, dtype = np.float32, shape = (1, self.memory))
         """price over last <<self.memory>> entries"""
 
         self.last_observation = None
         """last observation state"""
 
-        self.action_space = Box(low=-1.0, high=1.0, dtype=np.float32, shape=(1,))
+        self.action_space = Box(low = -1.0, high = 1.0, dtype = np.float32, shape = (1,))
         """between [-1, 1]\n
             eg. +0.7 means spend 70% of money that I have right now to buy btc\n
                 -0.5 means sell 50% of the btc I currently have"""
@@ -86,28 +87,44 @@ class BitcoinTradingEnv(Env):
         self.price_history = price_history.astype(np.float32)
         """all prices in a 1D array"""
 
-        self.price_history_deriv = np.zeros(shape=(price_history.shape[0] - 1,))
+        self.use_snd_deriv = use_snd_deriv
+        """whether to use second derivative instead of the first
+            for the observation (state) space"""
+
+        self.price_history_deriv = np.zeros(shape = (price_history.shape[0] - 1,))
         """prices derivative wrt time"""
+
+        self.price_history_snd_deriv = np.zeros(shape = (price_history.shape[0] - 2,))
+        """prices second derivative wrt time"""
 
         for i in range(len(self.price_history_deriv)):
             self.price_history_deriv[i] = self.price_history[i + 1] / self.price_history[i]
 
         self.price_history_deriv = self.price_history_deriv.astype(np.float32)
 
+        for i in range(len(self.price_history_snd_deriv)):
+            self.price_history_snd_deriv[i] = self.price_history_deriv[i + 1] / self.price_history_deriv[i]
+
+        self.price_history_snd_deriv = self.price_history_snd_deriv.astype(np.float32)
+
         self.current_moment = self.memory
         """clock, starting from 0\n
             eg. self.memory = 3 =>
-            current moment = 3, (initial)\n last observation = [p1 / p0, p2 / p1, p3 / p2]"""
+            current moment = 3,\n (fst deriv) last observation = [p1 / p0, p2 / p1, p3 / p2]\n
+            (snd deriv) last observation = [d0 / d-1, d1 / d0, d2 / d1]\n"""
 
     def reset(self):
         
         self.money = self.start_money
         self.btc = self.start_btc
 
-        assert(self.memory < len(self.price_history) - self.episode_len)
-        self.current_moment = random.choice(range(self.memory, len(self.price_history) - self.episode_len))
+        assert(self.memory + 1 < len(self.price_history) - self.episode_len)
+        self.current_moment = random.choice(range(self.memory + 1, len(self.price_history) - self.episode_len))
         
-        self.last_observation = self.price_history_deriv[self.current_moment - self.memory: self.current_moment]
+        if self.use_snd_deriv:
+            self.last_observation = self.price_history_snd_deriv[self.current_moment - self.memory: self.current_moment]
+        else:
+            self.last_observation = self.price_history_deriv[self.current_moment - self.memory - 1: self.current_moment - 1]
 
         self.total_balance = self.start_money + self.start_btc * self.price_history[self.current_moment]
         self.steps_todo = self.episode_len
@@ -160,7 +177,11 @@ class BitcoinTradingEnv(Env):
             return observation, -10000000000, False, info
 
         self.current_moment += 1
-        observation = np.insert(self.last_observation[1:], self.memory - 1, self.price_history_deriv[self.current_moment - 1])
+
+        if self.use_snd_deriv:
+            observation = np.insert(self.last_observation[1:], self.memory - 1, self.price_history_snd_deriv[self.current_moment - 2])
+        else:
+            observation = np.insert(self.last_observation[1:], self.memory - 1, self.price_history_deriv[self.current_moment - 1])
 
         new_total_balance = self.btc * self.price_history[self.current_moment] + self.money
         reward = np.log(new_total_balance / self.total_balance)

@@ -121,13 +121,14 @@ class DDPG_agent():
                     state_size = 5,
                     start_money = 1000,
                     start_btc = 0.1,
+                    use_snd_deriv = True,
                     stats4render = True,
                     control = True
                     ):
 
         self.env = BitcoinTradingEnv(data, start_money, start_btc, 
-                                        state_size, episode_len, stats4render,
-                                        control)
+                                        state_size, episode_len, use_snd_deriv,
+                                        stats4render, control)
         self.env.seed(seed)
 
         self.episode_len = episode_len
@@ -330,6 +331,7 @@ class DDPG_agent():
                             "state_size": [50],
                             "start_money": [1000],
                             "start_btc": [0.1],
+                            "use_snd_deriv": [True],
                             "stats4render": [True],
                             "control": [True]
                             }
@@ -403,13 +405,14 @@ class DDPG_agent_lstm():
                     state_size = 5,
                     start_money = 1000,
                     start_btc = 0.1,
+                    use_snd_deriv = True,
                     stats4render = True,
                     control = True
                     ):
 
         self.env = BitcoinTradingEnv(data, start_money, start_btc, 
-                                        state_size, episode_len, stats4render,
-                                        control)
+                                        state_size, episode_len, use_snd_deriv,
+                                        stats4render, control)
         self.env.seed(seed)
 
         self.episode_len = episode_len
@@ -690,6 +693,7 @@ class DDPG_agent_lstm():
                             "state_size": [50],
                             "start_money": [1000],
                             "start_btc": [0.1],
+                            "use_snd_deriv": [True],
                             "stats4render": [True],
                             "control": [True]
                             }
@@ -786,17 +790,11 @@ def run(data):
     # TODO remove after debug
     tf.debugging.enable_check_numerics()
 
-    #print(data.shape)
-    #quit()
-
     data_ = []
     for i in range(data.shape[0]):
         data_.append((data[i][2] + data[i][3]) / 2)
 
     data = np.array(data_)
-
-    #DDPG_agent.gridsearch(data)
-    #quit()
 
     agent = DDPG_agent_lstm(data, 
                             seed = 0,
@@ -815,6 +813,7 @@ def run(data):
                             state_size = 3,
                             start_money = 2000,
                             start_btc = 0.1,
+                            use_snd_deriv = True,
                             stats4render = True,
                             control = True
                         )
@@ -839,6 +838,7 @@ def run(data):
                         state_size = 4,
                         start_money = 2000,
                         start_btc = 0.1,
+                        use_snd_deriv = True,
                         stats4render = True,
                         control = True
                     )
