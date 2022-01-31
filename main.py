@@ -35,11 +35,10 @@ def main():
     # ddpg.run(data)
 
     # logger.info("running DQN algorithm...")
-    # dqn.run(data)
-    # # TODO MIT
+    dqn.run(data)
 
-    logger.info("running actor-critic algorithm...")
-    actor_critic.run(data)
+    # logger.info("running actor-critic algorithm...")
+    # actor_critic.run(data)
     # TODO RUS
 
     logger.info("done")

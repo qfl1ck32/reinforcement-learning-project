@@ -1,6 +1,4 @@
 from abc import ABC
-from copy import deepcopy
-from re import A
 from time import time
 import numpy as np
 import tensorflow as tf
@@ -8,10 +6,10 @@ import random
 
 from keras import Model
 from keras.optimizer_v2.gradient_descent import SGD
-from numpy import array, stack, argmax, linspace
+from numpy import stack, argmax, linspace
 from numpy.random import normal
-from tensorflow import keras, TensorShape, GradientTape, concat, one_hot, reduce_sum
-from tensorflow.keras.layers import Input, Dense, Activation, ReLU, Softmax, InputLayer
+from tensorflow import expand_dims, TensorShape, GradientTape, one_hot, reduce_sum
+from tensorflow.keras.layers import Dense, InputLayer
 from tensorflow import function as tf_function
 
 from env.BitcoinEnv import BitcoinTradingEnv
@@ -42,26 +40,26 @@ class Q(Model, ABC):
 
         return self.output_layer(tmp)
 
+
 class LinearScheduleEpsilon():
-    def __init__(self, start_eps = 1.0, final_eps = 0.1,
-                 pre_train_steps = 10, final_eps_step = 10000):
+    def __init__(self, start_eps=1.0, final_eps=0.1,
+                 pre_train_steps=10, final_eps_step=10000):
         self.start_eps = start_eps
         self.final_eps = final_eps
         self.pre_train_steps = pre_train_steps
         self.final_eps_step = final_eps_step
         self.decay_per_step = (self.start_eps - self.final_eps) \
-                                /  (self.final_eps_step - self.pre_train_steps)
-
+                              / (self.final_eps_step - self.pre_train_steps)
 
     def get_value(self, step):
         if step <= self.pre_train_steps:
-            return 1.0 # full exploration in the beginning
+            return 1.0  # full exploration in the beginning
         else:
             epsilon = (1.0 - self.decay_per_step * (step - self.pre_train_steps))
             epsilon = max(self.final_eps, epsilon)
             return epsilon
-        
-        
+
+
 class DQN:
     def __init__(self,
                  data,
@@ -73,7 +71,7 @@ class DQN:
                  q_lr=0.001,
                  q_momentum=0.9,
                  steps_until_sync=10,
-                 choose_action_frequency=1,
+                 choose_action_frequency=25,
                  pre_train_steps=1,
                  train_frequency=1,
                  state_size=7,
@@ -82,12 +80,12 @@ class DQN:
                  start_btc=0.1,
                  stats4render=True):
 
-        self.env = BitcoinTradingEnv(data, 
-                                     start_money=start_money, 
-                                     start_btc=start_btc, 
+        self.env = BitcoinTradingEnv(data,
+                                     start_money=start_money,
+                                     start_btc=start_btc,
                                      memory=state_size,
-                                     episode_len=episode_len, 
-                                     stats4render=stats4render, 
+                                     episode_len=episode_len,
+                                     stats4render=stats4render,
                                      use_snd_deriv=False)
         self.env.seed(seed)
 
@@ -100,9 +98,9 @@ class DQN:
         self.actions = linspace(1, -1, num=action_size)
 
         self.num_actions = len(self.actions)
-        self.q = Q(input_shape=(1 + state_size, ),
+        self.q = Q(input_shape=(1 + state_size,),
                    num_actions=self.num_actions)
-        self.q_target = Q(input_shape=(1 + state_size, ),
+        self.q_target = Q(input_shape=(1 + state_size,),
                           num_actions=self.num_actions)
 
         q_input_shape = TensorShape([batch_size, state_size])
@@ -123,24 +121,24 @@ class DQN:
 
         self.loss_function = tf.keras.losses.MSE
         self.q_optimizer = SGD(self.q_lr, self.q_momentum)
-        
+
         self.epsilon_scheduler = LinearScheduleEpsilon()
         self.total_steps = 0
 
-    def get_action(self, state, epsilon):
+    def get_action(self, states, epsilon):
         """between [-1, 1], but with a fixed 0.25 interval\n
             eg. +0.75 means spend 75% of money that I have right now to buy btc\n
                 -0.5 means sell 50% of the btc I currently have"""
         sampled_value = random.random()
 
         if self.total_steps <= self.pre_train_steps or \
-            sampled_value < epsilon or \
-            len(self.replay_buffer) < self.batch_size:
-            return np.random.choice(self.actions)
+                sampled_value < epsilon or \
+                len(self.replay_buffer) < self.batch_size:
+            return np.random.choice(self.actions, size=[len(states), ])
         else:
-            predict_q = self.q(state)
-            action = argmax(predict_q, axis=1)
-            return action
+            predict_q = self.q(states)
+            actions = argmax(predict_q, axis=1)
+            return actions
 
     def get_epsilon(self, step):
         return self.epsilon_scheduler.get_value(step=step)
@@ -162,8 +160,9 @@ class DQN:
             epsilon = self.get_epsilon(step_idx)
 
             if step_idx % self.choose_action_frequency == 0:
-                action = self.get_action(state, epsilon)
-                
+                actions = self.get_action(expand_dims(state, 0), epsilon)
+                action = actions[0]
+
             next_state, reward, done, _ = self.env.step(action)
 
             if done or step_idx >= self.episode_len:
@@ -176,9 +175,8 @@ class DQN:
                 self.q_target.set_weights(self.q.get_weights())
 
             if self.total_steps > self.pre_train_steps and \
-                step_idx % self.steps_until_sync == 0 and \
-                len(self.replay_buffer) >= self.batch_size:
-
+                    step_idx % self.steps_until_sync == 0 and \
+                    len(self.replay_buffer) >= self.batch_size:
                 samples = random.sample(
                     self.replay_buffer[-self.replay_buffer_len:],
                     self.batch_size)
@@ -188,7 +186,7 @@ class DQN:
                 r_batch = stack([sample[2] for sample in samples], axis=0)
                 s_next_batch = stack([sample[3] for sample in samples], axis=0)
                 d_batch = stack([sample[4] for sample in samples], axis=0)
-                
+
                 # train Q network
                 with GradientTape() as q_tape:
                     q_vars = self.q.trainable_variables
@@ -206,11 +204,10 @@ class DQN:
 
                     q_pred = self.q(s_batch)
 
-                    a_next_batch = argmax(q_pred, axis=1)
                     a_next_one_hot = one_hot(indices=a_batch,
                                              depth=self.num_actions)
-
                     predicted_q = reduce_sum(a_next_one_hot * q_pred, axis=1)
+
                     loss = self.loss_function(y_true=target_q,
                                               y_pred=predicted_q)
 
@@ -252,7 +249,8 @@ class DQN:
                           f"money {self.env.money}, btc {self.env.btc}, " + \
                           f"money/btc {self.env.price_history[self.env.current_moment]}")
 
-            action = self.get_action(state)
+            epsilon = self.get_epsilon(step_idx)
+            action = self.get_action(state, epsilon)
             next_state, _, done, _ = self.env.step(action)
 
             if done or step_idx >= self.episode_len:
@@ -265,6 +263,7 @@ class DQN:
 
 def run(data):
     """entry point"""
+
     def _check_gap_frequency(data):
 
         logger.info("gap length histogram...")
@@ -317,7 +316,7 @@ def run(data):
         data_.append((data[i][2] + data[i][3]) / 2)
 
     data = np.array(data_)
-    
+
     agent = DQN(data)
     agent.train(episodes=10, save_model=False, render=True)
     agent.test(data)
