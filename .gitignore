@@ -11,3 +11,4 @@ q_model*
 policy_model*
 checkpoint
 gridsearch*
+/data/statistics/*
