@@ -31,15 +31,15 @@ def get_numpy_data():
 def main():
     data = get_numpy_data()
 
-    # logger.info("running DDPG algorithm...")
-    # ddpg.run(data)
+    logger.info("running DDPG algorithm...")
+    ddpg.run(data)
 
     # logger.info("running DQN algorithm...")
     # dqn.run(data)
     # # TODO MIT
 
-    logger.info("running actor-critic algorithm...")
-    actor_critic.run(data)
+    # logger.info("running actor-critic algorithm...")
+    # actor_critic.run(data)
     # TODO RUS
 
     logger.info("done")
