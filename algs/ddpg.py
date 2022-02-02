@@ -863,7 +863,7 @@ def run(data):
     agent.train(episodes = 1000, save_model = True, render = False)
     agent.test(data)
 
-    quit()
+    return
 
     agent = DDPG_agent(data,
                        seed=0,
