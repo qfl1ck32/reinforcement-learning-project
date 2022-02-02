@@ -1,7 +1,7 @@
 import numpy as np
 from logger.logger import logger
 from data.DataManager import *
-from algs import ddpg
+from algs import dqn, ddpg
 
 
 def get_data():
@@ -29,6 +29,12 @@ def get_numpy_data():
 
 
 def main_statistics():
+
+    data = get_numpy_data()
+
+    logger.info("running DDPG algorithm...")
+    ddpg.run(data)
+
     statistics_data = generate_data_for_statistics()
 
     for symbol in statistics_data:
@@ -54,9 +60,6 @@ def main_statistics():
 #     # dqn.run(data)
 #     # # TODO MIT
 #
-#     logger.info("running actor-critic algorithm...")
-#     actor_critic.run(data)
-#     # TODO RUS
 #
 #     logger.info("done")
 

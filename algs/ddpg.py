@@ -22,6 +22,7 @@ from tensorflow.keras.models import *
 from tensorflow.keras.layers import *
 from tensorflow.keras.losses import *
 from tensorflow.keras.optimizers import *
+from tensorflow.keras.activations import *
 
 from env.BitcoinEnv import BitcoinTradingEnv
 
@@ -36,10 +37,11 @@ class Q(Model):
         self.input_layer = InputLayer(input_shape=input_shape)
 
         self.hidden_layers = []
-        self.hidden_layers.append(Dense(128, activation="relu"))
-        self.hidden_layers.append(Dense(64, activation="relu"))
-        self.hidden_layers.append(Dense(32, activation="relu"))
-        self.hidden_layers.append(Dense(16, activation="relu"))
+        self.hidden_layers.append(Dense(128, activation = "relu"))
+        self.hidden_layers.append(Dense(64, activation = "relu"))
+        self.hidden_layers.append(Dense(32, activation = "relu"))
+        self.hidden_layers.append(Dense(32, activation = "relu"))
+        self.hidden_layers.append(Dense(16, activation = "relu"))
 
         self.output_layer = Dense(1, activation="linear")
 
@@ -62,9 +64,9 @@ class Policy(Model):
         self.input_layer = InputLayer(input_shape=input_shape)
 
         self.hidden_layers = []
-        self.hidden_layers.append(Dense(64, activation="relu"))
-        self.hidden_layers.append(Dense(32, activation="relu"))
-        self.hidden_layers.append(Dense(16, activation="relu"))
+        self.hidden_layers.append(Dense(64, activation = "relu"))
+        self.hidden_layers.append(Dense(32, activation = "relu"))
+        self.hidden_layers.append(Dense(16, activation = "relu"))
 
         self.output_layer = Dense(1, activation="tanh")
 
@@ -87,9 +89,9 @@ class Policy_LSTM(Model):
         self.input_layer = LSTM(128)
 
         self.hidden_layers = []
-        self.hidden_layers.append(Dense(64, activation="relu"))
-        self.hidden_layers.append(Dense(32, activation="relu"))
-        self.hidden_layers.append(Dense(16, activation="relu"))
+        self.hidden_layers.append(Dense(64, activation = "relu"))
+        self.hidden_layers.append(Dense(32, activation = "relu"))
+        self.hidden_layers.append(Dense(16, activation = "relu"))
 
         self.output_layer = Dense(1, activation="tanh")
 
@@ -407,31 +409,31 @@ class DDPG_agent_lstm():
     TRAIN_DEBUG_STATS_PERIOD = 500
 
     def __init__(self,
-                 data,
-                 seed=None,
-                 episode_len=10000,
-                 noise_std=0.1,
-                 replay_buffer_len=1024 * 16,
-                 discount=0.999,
-                 batch_size=128,
-                 q_lr=0.001,
-                 policy_lr=0.0001,
-                 q_momentum=0.9,
-                 policy_momentum=0.9,
-                 lstm_timesteps=3,
-                 polyak=0.9,
-                 steps_until_sync=10,
-                 state_size=5,
-                 start_money=1000,
-                 start_btc=0.1,
-                 use_snd_deriv=True,
-                 stats4render=True,
-                 control=True
-                 ):
+                    data,
+                    seed = None,
+                    episode_len = 50000,
+                    noise_std = 0.1,
+                    replay_buffer_len = 1024 * 16,
+                    discount = 0.999,
+                    batch_size = 128,
+                    q_lr = 0.001,
+                    policy_lr = 0.0001,
+                    q_momentum = 0.9,
+                    policy_momentum = 0.9,
+                    lstm_timesteps = 3,
+                    polyak = 0.9,
+                    steps_until_sync = 10,
+                    state_size = 5,
+                    start_money = 1000,
+                    start_btc = 0.1,
+                    use_snd_deriv = True,
+                    stats4render = True,
+                    control = True
+                    ):
 
-        self.env = BitcoinTradingEnv(data, start_money, start_btc,
-                                     state_size, episode_len, use_snd_deriv,
-                                     stats4render, control)
+        self.env = BitcoinTradingEnv(data, start_money, start_btc, 
+                                        state_size, episode_len, use_snd_deriv,
+                                        stats4render, control)
         self.env.seed(seed)
 
         self.episode_len = episode_len
@@ -478,9 +480,9 @@ class DDPG_agent_lstm():
             eg. +0.7 means spend 70% of money that I have right now to buy btc\n
                 -0.5 means sell 50% of the btc I currently have"""
 
-        if self.env.money < 0.1 or self.env.btc < 0.001:
-            self.noise_std = 0.5
-
+        #if self.env.money < 0.1 or self.env.btc < 0.001:
+         #   self.noise_std = 0.5
+        
         policy_action = self.policy(np.array([state]))[0]
         return min(max(policy_action + normal(0, self.noise_std), np.array([-1])), np.array([1]))
 
@@ -515,6 +517,10 @@ class DDPG_agent_lstm():
             self.replay_buffer.append((state, action, reward, next_state))
 
             if step_idx % self.steps_until_sync == 0 and len(self.replay_buffer) >= self.batch_size:
+                
+                # TODO remove
+                self.noise_std *= 0.99
+                self.noise_std = max(self.noise_std, 0.0001)
 
                 s_batch = []
                 a_batch = []
@@ -825,7 +831,7 @@ def run(data):
     # _check_cont_frequency(data)
 
     # TODO remove after debug
-    tf.debugging.enable_check_numerics()
+    # tf.debugging.enable_check_numerics()
 
     data_ = []
     for i in range(data.shape[0]):
@@ -833,31 +839,31 @@ def run(data):
 
     data = np.array(data_)
 
-    agent = DDPG_agent_lstm(data,
-                            seed=0,
-                            episode_len=10000,
-                            noise_std=0.05,
-                            replay_buffer_len=1024 * 64,
-                            discount=0.9,
-                            batch_size=1024,
-                            q_lr=1e-4,
-                            policy_lr=1e-5,
-                            q_momentum=0.9,
-                            policy_momentum=0.9,
-                            lstm_timesteps=5,
-                            polyak=0.9,
-                            steps_until_sync=50,
-                            state_size=4,
-                            start_money=2000,
-                            start_btc=0.1,
-                            use_snd_deriv=True,
-                            stats4render=True,
-                            control=True
-                            )
-    agent.train(episodes=100, save_model=True, render=True)
+    agent = DDPG_agent_lstm(data, 
+                            seed = 123,
+                            episode_len = 1000,
+                            noise_std = 0.8,
+                            replay_buffer_len = 1024 * 64,
+                            discount = 0.9,
+                            batch_size = 4,
+                            q_lr = 1e-4,
+                            policy_lr = 1e-5,
+                            q_momentum = 0.9,
+                            policy_momentum = 0.9,
+                            lstm_timesteps = 5,
+                            polyak = 0.9,
+                            steps_until_sync = 20,
+                            state_size = 300,
+                            start_money = 2000,
+                            start_btc = 0.2,
+                            use_snd_deriv = False,
+                            stats4render = True,
+                            control = True
+                        )
+    agent.train(episodes = 1000, save_model = True, render = False)
     agent.test(data)
 
-    quit()
+    return
 
     agent = DDPG_agent(data,
                        seed=0,
