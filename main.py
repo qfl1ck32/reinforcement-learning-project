@@ -1,7 +1,7 @@
 import numpy as np
 from logger.logger import logger
 from data.DataManager import *
-from algs import dqn
+from algs import ddpg
 
 
 def get_data():
@@ -39,7 +39,9 @@ def main_statistics():
 
         data = np.array(data)
 
-        dqn.run(data)
+        print(data)
+
+        ddpg.run(data)
 
 #
 # def main_train_data():

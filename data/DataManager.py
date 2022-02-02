@@ -27,8 +27,7 @@ def generate_data_for_statistics():
 
     }
 
-    for file_name in file_names:
-        print(file_name)
+    for file_name in file_names[:1]:
         path = f"{TEST_DATA_FILE_DIRECTORY}/{file_name}"
 
         with open(path, newline='') as file:
