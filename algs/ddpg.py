@@ -674,7 +674,7 @@ class DDPG_agent_lstm():
                 self.policy_target.save_weights(
                     f"policy_model_ep{ep_idx}_{tag}")
 
-    def test(self, data, stats_interval=1000):
+    def test(self, data, stats_interval=1000, save_file_path=None):
 
         backup_ep_len = self.env.episode_len
 
@@ -694,7 +694,7 @@ class DDPG_agent_lstm():
                       f"money/btc {self.env.price_history[self.env.current_moment]}")
 
                 if self.env.stats4render:
-                    self.env.render()
+                    self.env.render(save_file_path=save_file_path)
 
             action = self.get_action(tf.stack(recent_states + state, axis=0))
             next_state, _, done, _ = self.env.step(action)
@@ -783,7 +783,7 @@ class DDPG_agent_lstm():
         f.close()
 
 
-def run(data):
+def run(data, save_file_path=None):
     """entry point"""
 
     def _check_gap_frequency(data):
@@ -860,8 +860,8 @@ def run(data):
                             stats4render = True,
                             control = True
                         )
-    agent.train(episodes = 1000, save_model = True, render = False)
-    agent.test(data)
+    agent.train(episodes = 2, save_model = True, render = False)
+    agent.test(data, save_file_path=save_file_path)
 
     return
 

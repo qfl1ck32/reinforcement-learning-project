@@ -232,7 +232,7 @@ class DQN:
 
                 self.q_target.save_weights(f"q_model_ep{ep_idx}_{tag}")
 
-    def test(self, data):
+    def test(self, data, save_file_path=None):
 
         backup_ep_len = self.env.episode_len
 
@@ -249,6 +249,9 @@ class DQN:
                           f"money {self.env.money}, btc {self.env.btc}, " + \
                           f"money/btc {self.env.price_history[self.env.current_moment]}")
 
+                    if self.env.stats4render:
+                        self.env.render(save_file_path=save_file_path)
+
             epsilon = self.get_epsilon(step_idx)
             action = self.get_action(state, epsilon)
             next_state, _, done, _ = self.env.step(action)
@@ -261,7 +264,7 @@ class DQN:
             step_idx += 1
 
 
-def run(data):
+def run(data, save_file_path=None):
     """entry point"""
 
     def _check_gap_frequency(data):
@@ -318,5 +321,5 @@ def run(data):
     data = np.array(data_)
 
     agent = DQN(data)
-    agent.train(episodes=10, save_model=False, render=True)
-    agent.test(data)
+    agent.train(episodes=10, save_model=False, render=False)
+    agent.test(data, save_file_path=save_file_path)

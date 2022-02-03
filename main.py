@@ -30,11 +30,6 @@ def get_numpy_data():
 
 def main_statistics():
 
-    data = get_numpy_data()
-
-    logger.info("running DDPG algorithm...")
-    ddpg.run(data)
-
     statistics_data = generate_data_for_statistics()
 
     for symbol in statistics_data:
@@ -47,9 +42,9 @@ def main_statistics():
 
         print(data)
 
-        ddpg.run(data)
+        dqn.run(data, f"dqn-{symbol}.png")
 
-#
+
 # def main_train_data():
 #     data = get_numpy_data()
 #

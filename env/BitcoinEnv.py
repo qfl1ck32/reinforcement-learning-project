@@ -230,7 +230,7 @@ class BitcoinTradingEnv(Env):
 
         return observation, reward, False, info
 
-    def render(self, mode="human"):
+    def render(self, mode="human", save_file_path=None):
         """Should contain:\n
             * A graph plotting all prices in the episode_len range\n
             * A graph plotting total balance, and subgraphs for btc and money\n"""
@@ -291,6 +291,9 @@ class BitcoinTradingEnv(Env):
             balance_time_control.grid(True)
 
             plt.show()
+
+            if save_file_path:
+                plt.savefig(save_file_path)
 
         else:
 
